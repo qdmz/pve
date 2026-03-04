@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: pve-manager-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - pve-network
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=pve_manager
+      - DB_USER=root
+      - DB_PASSWORD=rootpass123
+      - PHP_DISPLAY_ERRORS=1
+
+  nginx:
+    image: nginx:alpine
+    container_name: pve-manager-nginx
+    restart: unless-stopped
+    ports:
+      - "81:80"
+      - "444:443"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - pve-network
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: pve-manager-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: pve_manager
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/02-init.sql
+    networks:
+      - pve-network
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:7-alpine
+    container_name: pve-manager-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - pve-network
+
+networks:
+  pve-network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
