@@ -11,7 +11,7 @@ class VmController {
     }
 
     // 获取用户的虚拟机列表
-    public function getUserVms($userId) {
+    public function getUserVms($userId, $refresh = false) {
         $isAdmin = (isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin');
         
         if ($isAdmin) {
@@ -35,9 +35,22 @@ class VmController {
         
         $vms = $stmt->fetchAll();
         
-        // 获取每个虚拟机的实时状态
+        // 获取每个虚拟机的状态（默认使用本地缓存，可选择刷新）
         foreach ($vms as &$vm) {
-            $vm[' realtime_status'] = $this->getVmRealtimeStatus($vm['id']);
+            if ($refresh) {
+                $vm['realtime_status'] = $this->getVmRealtimeStatus($vm['id']);
+                // 更新本地缓存状态
+                $this->pdo->prepare("UPDATE vms SET status = ? WHERE id = ?")
+                    ->execute([$vm['realtime_status']['status'] ?? $vm['status'], $vm['id']]);
+            } else {
+                $vm['realtime_status'] = [
+                    'status' => $vm['status'],
+                    'qemu' => [
+                        'cpu' => 0,
+                        'mem' => 0
+                    ]
+                ];
+            }
             if (isset($vm['expires_at']) && $vm['expires_at']) {
                 $vm['days_remaining'] = $this->calculateDaysRemaining($vm['expires_at']);
             }
@@ -47,7 +60,7 @@ class VmController {
     }
 
     // 获取单个虚拟机详情
-    public function getVmDetail($vmId, $userId) {
+    public function getVmDetail($vmId, $userId, $refresh = false) {
         $isAdmin = (isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin');
         
         if ($isAdmin) {
@@ -77,8 +90,21 @@ class VmController {
             throw new Exception("虚拟机不存在或无权访问");
         }
         
-        // 获取实时状态
-        $vm['realtime_status'] = $this->getVmRealtimeStatus($vmId);
+        // 获取状态（默认使用本地缓存，可选择刷新）
+        if ($refresh) {
+            $vm['realtime_status'] = $this->getVmRealtimeStatus($vmId);
+            // 更新本地缓存状态
+            $this->pdo->prepare("UPDATE vms SET status = ? WHERE id = ?")
+                ->execute([$vm['realtime_status']['status'] ?? $vm['status'], $vmId]);
+        } else {
+            $vm['realtime_status'] = [
+                'status' => $vm['status'],
+                'qemu' => [
+                    'cpu' => 0,
+                    'mem' => 0
+                ]
+            ];
+        }
         
         // 计算剩余天数
         if (isset($vm['expires_at']) && $vm['expires_at']) {
@@ -122,9 +148,10 @@ class VmController {
             'shutdown' => 'stopped'
         ];
         
+        $newStatus = $statusMap[$action];
         $this->pdo->prepare(
-            "UPDATE vms SET status = ? WHERE id = ?"
-        )->execute([$statusMap[$action], $vmId]);
+            "UPDATE vms SET status = ?, last_sync = NOW() WHERE id = ?"
+        )->execute([$newStatus, $vmId]);
         
         return true;
     }
@@ -322,30 +349,70 @@ class VmController {
         return $interval->format('%r%a'); // 正数表示剩余天数，负数表示已过期
     }
 
-    // 获取CPU使用率（示例）
+    // 获取CPU使用率
     private function getCpuUsage($vmId) {
-        // 实际应该从PVE API获取
-        return rand(10, 80) . '%';
+        $vm = $this->getVmDetail($vmId, $_SESSION['user']['id']);
+        $status = $this->pveService->getVmStatus($vmId);
+        
+        if ($status && isset($status['cpu'])) {
+            return round($status['cpu'] * 100, 2) . '%';
+        }
+        
+        return '0%';
     }
 
-    // 获取内存使用率（示例）
+    // 获取内存使用率
     private function getMemoryUsage($vmId) {
-        // 实际应该从PVE API获取
-        return rand(30, 90) . '%';
+        $vm = $this->getVmDetail($vmId, $_SESSION['user']['id']);
+        $status = $this->pveService->getVmStatus($vmId);
+        
+        if ($status && isset($status['mem']) && isset($status['maxmem'])) {
+            $usage = ($status['mem'] / $status['maxmem']) * 100;
+            return round($usage, 2) . '%';
+        }
+        
+        return '0%';
     }
 
-    // 获取磁盘使用率（示例）
+    // 获取磁盘使用率
     private function getDiskUsage($vmId) {
-        // 实际应该从PVE API获取
-        return rand(20, 70) . '%';
+        $vm = $this->getVmDetail($vmId, $_SESSION['user']['id']);
+        $status = $this->pveService->getVmStatus($vmId);
+        
+        if ($status && isset($status['disk']) && isset($status['maxdisk'])) {
+            $usage = ($status['disk'] / $status['maxdisk']) * 100;
+            return round($usage, 2) . '%';
+        }
+        
+        return '0%';
     }
 
-    // 获取网络IO（示例）
+    // 获取网络IO
     private function getNetworkIO($vmId) {
-        // 实际应该从PVE API获取
+        $vm = $this->getVmDetail($vmId, $_SESSION['user']['id']);
+        $status = $this->pveService->getVmStatus($vmId);
+        
+        if ($status) {
+            return [
+                'in' => isset($status['netin']) ? $this->formatBytes($status['netin']) . '/s' : '0 B/s',
+                'out' => isset($status['netout']) ? $this->formatBytes($status['netout']) . '/s' : '0 B/s'
+            ];
+        }
+        
         return [
-            'in' => rand(100, 1000) . ' KB/s',
-            'out' => rand(100, 1000) . ' KB/s'
+            'in' => '0 B/s',
+            'out' => '0 B/s'
         ];
+    }
+
+    // 格式化字节数
+    private function formatBytes($bytes, $precision = 2) {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        
+        return round($bytes, $precision) . ' ' . $units[$i];
     }
 }

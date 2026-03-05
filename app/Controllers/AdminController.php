@@ -16,23 +16,22 @@ class AdminController {
         $offset = ($page - 1) * $limit;
         
         if ($search) {
+            $searchParam = "%$search%";
             $stmt = $this->pdo->prepare(
                 "SELECT id, username, email, role, status, created_at, last_login 
                  FROM users 
                  WHERE username LIKE ? OR email LIKE ? 
                  ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?"
+                 LIMIT " . (int)$limit . " OFFSET " . (int)$offset
             );
-            $searchParam = "%$search%";
-            $stmt->execute([$searchParam, $searchParam, $limit, $offset]);
+            $stmt->execute([$searchParam, $searchParam]);
         } else {
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->pdo->query(
                 "SELECT id, username, email, role, status, created_at, last_login 
                  FROM users 
                  ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?"
+                 LIMIT " . (int)$limit . " OFFSET " . (int)$offset
             );
-            $stmt->execute([$limit, $offset]);
         }
         
         return $stmt->fetchAll();
@@ -95,6 +94,111 @@ class AdminController {
         );
         $stmt->execute([$userId]);
         return $stmt->fetch();
+    }
+
+    // 创建用户
+    public function createUser($data) {
+        // 检查邮箱是否已存在
+        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->execute([$data['email']]);
+        if ($stmt->fetch()) {
+            throw new Exception("邮箱已存在");
+        }
+        
+        // 检查用户名是否已存在
+        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt->execute([$data['username']]);
+        if ($stmt->fetch()) {
+            throw new Exception("用户名已存在");
+        }
+        
+        // 创建用户
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO users (username, email, password_hash, role, status) 
+             VALUES (?, ?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $data['username'],
+            $data['email'],
+            password_hash($data['password'], PASSWORD_DEFAULT),
+            $data['role'],
+            $data['status']
+        ]);
+        
+        $userId = $this->pdo->lastInsertId();
+        
+        // 初始化用户余额
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO user_balance (user_id, balance, total_recharge) 
+             VALUES (?, 0, 0)"
+        );
+        $stmt->execute([$userId]);
+        
+        $this->auth->logAudit('create_user', ['user_id' => $userId]);
+        return $userId;
+    }
+
+    // 更新用户
+    public function updateUser($userId, $data) {
+        $sql = "UPDATE users SET username = ?, email = ?, role = ?, status = ?";
+        $params = [
+            $data['username'],
+            $data['email'],
+            $data['role'],
+            $data['status']
+        ];
+        
+        // 如果提供了密码，则更新密码
+        if (!empty($data['password'])) {
+            $sql .= ", password_hash = ?";
+            $params[] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+        
+        $sql .= " WHERE id = ?";
+        $params[] = $userId;
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        
+        $this->auth->logAudit('update_user', ['user_id' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    // 删除用户
+    public function deleteUser($userId) {
+        // 检查是否有虚拟机
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        if ($stmt->fetchColumn() > 0) {
+            throw new Exception("该用户还有虚拟机，无法删除");
+        }
+        
+        // 检查是否有订单
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM orders WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        if ($stmt->fetchColumn() > 0) {
+            throw new Exception("该用户还有订单，无法删除");
+        }
+        
+        // 开始事务
+        $this->pdo->beginTransaction();
+        
+        try {
+            // 删除用户余额
+            $stmt = $this->pdo->prepare("DELETE FROM user_balance WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            
+            // 删除用户
+            $stmt = $this->pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            
+            $this->pdo->commit();
+            $this->auth->logAudit('delete_user', ['user_id' => $userId]);
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
     }
 
     // ========== 产品管理 ==========
@@ -194,26 +298,28 @@ class AdminController {
     public function getAllOrders($page = 1, $limit = 20, $status = null) {
         $offset = ($page - 1) * $limit;
         
-        $sql = "SELECT o.*, u.username, p.name as product_name 
+        if ($status) {
+            $stmt = $this->pdo->prepare(
+                "SELECT o.*, u.username, p.name as product_name 
                 FROM orders o 
                 JOIN users u ON o.user_id = u.id 
-                LEFT JOIN products p ON o.product_id = p.id";
-        
-        if ($status) {
-            $sql .= " WHERE o.status = ?";
+                LEFT JOIN products p ON o.product_id = p.id
+                WHERE o.status = ?
+                ORDER BY o.created_at DESC 
+                LIMIT " . (int)$limit . " OFFSET " . (int)$offset
+            );
+            $stmt->execute([$status]);
+        } else {
+            $stmt = $this->pdo->query(
+                "SELECT o.*, u.username, p.name as product_name 
+                FROM orders o 
+                JOIN users u ON o.user_id = u.id 
+                LEFT JOIN products p ON o.product_id = p.id
+                ORDER BY o.created_at DESC 
+                LIMIT " . (int)$limit . " OFFSET " . (int)$offset
+            );
         }
         
-        $sql .= " ORDER BY o.created_at DESC LIMIT ? OFFSET ?";
-        
-        $stmt = $this->pdo->prepare($sql);
-        $params = [];
-        if ($status) {
-            $params[] = $status;
-        }
-        $params[] = $limit;
-        $params[] = $offset;
-        
-        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -223,6 +329,54 @@ class AdminController {
         $stmt->execute([$orderId]);
         
         $this->auth->logAudit('delete_order', ['order_id' => $orderId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    // 获取订单详情
+    public function getOrderDetail($orderId) {
+        $stmt = $this->pdo->prepare(
+            "SELECT o.*, u.username, p.name as product_name 
+             FROM orders o 
+             JOIN users u ON o.user_id = u.id 
+             LEFT JOIN products p ON o.product_id = p.id
+             WHERE o.id = ?"
+        );
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        
+        if (!$order) {
+            throw new Exception("订单不存在");
+        }
+        
+        return $order;
+    }
+
+    // 更新订单状态
+    public function updateOrderStatus($orderId, $status) {
+        if (!in_array($status, ['pending', 'paid', 'cancelled'])) {
+            throw new Exception("无效的订单状态");
+        }
+        
+        $stmt = $this->pdo->prepare(
+            "UPDATE orders SET status = ?"
+        );
+        
+        $params = [$status];
+        
+        if ($status === 'paid') {
+            $stmt->queryString .= ", paid_at = NOW()";
+        }
+        
+        $stmt->queryString .= " WHERE id = ?";
+        $params[] = $orderId;
+        
+        $stmt->execute($params);
+        
+        $this->auth->logAudit('update_order_status', [
+            'order_id' => $orderId,
+            'status' => $status
+        ]);
+        
         return $stmt->rowCount() > 0;
     }
 
@@ -348,6 +502,111 @@ class AdminController {
         return $stmt->rowCount() > 0;
     }
 
+    // 获取节点详情
+    public function getNodeDetail($nodeId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM pve_nodes WHERE id = ?");
+        $stmt->execute([$nodeId]);
+        $node = $stmt->fetch();
+        
+        if (!$node) {
+            throw new Exception("节点不存在");
+        }
+        
+        // 统计该节点上的虚拟机数量
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as vm_count FROM vms WHERE node_id = ? AND type = 'kvm'");
+        $stmt->execute([$nodeId]);
+        $node['vm_count'] = $stmt->fetchColumn();
+        
+        // 统计该节点上的容器数量
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as container_count FROM vms WHERE node_id = ? AND type = 'lxc'");
+        $stmt->execute([$nodeId]);
+        $node['container_count'] = $stmt->fetchColumn();
+        
+        // 获取节点系统状态
+        $pveService = new PveApiService($this->pdo);
+        $nodeStatus = $this->getNodeStatus($nodeId);
+        
+        if ($nodeStatus) {
+            $node['cpu_usage'] = isset($nodeStatus['cpu']) ? round($nodeStatus['cpu'] * 100, 2) . '%' : '0%';
+            $node['memory_usage'] = isset($nodeStatus['mem']) && isset($nodeStatus['maxmem']) 
+                ? round(($nodeStatus['mem'] / $nodeStatus['maxmem']) * 100, 2) . '%' 
+                : '0%';
+            $node['disk_usage'] = isset($nodeStatus['rootfs']) && isset($nodeStatus['rootfs']['used']) && isset($nodeStatus['rootfs']['total'])
+                ? round(($nodeStatus['rootfs']['used'] / $nodeStatus['rootfs']['total']) * 100, 2) . '%'
+                : '0%';
+            $node['network_traffic'] = isset($nodeStatus['network']) 
+                ? $this->formatNetworkTraffic($nodeStatus['network']) 
+                : '0 KB/s';
+        } else {
+            $node['cpu_usage'] = '0%';
+            $node['memory_usage'] = '0%';
+            $node['disk_usage'] = '0%';
+            $node['network_traffic'] = '0 KB/s';
+        }
+        
+        return $node;
+    }
+
+    // 获取节点状态
+    private function getNodeStatus($nodeId) {
+        $node = $this->getNodeDetails($nodeId);
+        if (!$node) return false;
+
+        $auth = "{$node['api_user']}={$node['api_token']}";
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return false;
+
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return false;
+
+        $nodeName = $data['data'][0]['node'];
+        
+        // 获取节点状态
+        $statusUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes/{$nodeName}/status";
+        $response = @file_get_contents($statusUrl, false, $context);
+        if (!$response) return false;
+
+        $statusData = json_decode($response, true);
+        return $statusData['data'] ?? false;
+    }
+
+    // 格式化网络流量
+    private function formatNetworkTraffic($network) {
+        $totalIn = 0;
+        $totalOut = 0;
+        
+        foreach ($network as $iface => $stats) {
+            if (isset($stats['in'])) $totalIn += $stats['in'];
+            if (isset($stats['out'])) $totalOut += $stats['out'];
+        }
+        
+        $total = $totalIn + $totalOut;
+        return $this->formatBytes($total) . '/s';
+    }
+
+    // 格式化字节数
+    private function formatBytes($bytes, $precision = 2) {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        
+        return round($bytes, $precision) . ' ' . $units[$i];
+    }
+
     // 同步节点虚拟机
     public function syncNodeVms($nodeId) {
         $pveService = new PveApiService($this->pdo);
@@ -385,6 +644,239 @@ class AdminController {
     public function getAllConfigs() {
         $stmt = $this->pdo->query("SELECT * FROM site_config ORDER BY `key`");
         return $stmt->fetchAll();
+    }
+
+    // 保存基本设置
+    public function saveBasicConfig($data) {
+        foreach ($data as $key => $value) {
+            $this->updateSiteConfig('basic_' . $key, $value);
+        }
+        return true;
+    }
+
+    // 保存支付设置
+    public function savePaymentConfig($data) {
+        foreach ($data as $key => $value) {
+            $this->updateSiteConfig('payment_' . $key, $value);
+        }
+        return true;
+    }
+
+    // 保存邮件设置
+    public function saveEmailConfig($data) {
+        foreach ($data as $key => $value) {
+            $this->updateSiteConfig('email_' . $key, $value);
+        }
+        return true;
+    }
+
+    // 保存高级设置
+    public function saveAdvancedConfig($data) {
+        foreach ($data as $key => $value) {
+            $this->updateSiteConfig('advanced_' . $key, $value);
+        }
+        return true;
+    }
+
+    // 获取审计日志
+    public function getAuditLogs($page = 1, $limit = 20, $search = '', $userId = '', $date = '') {
+        $offset = ($page - 1) * $limit;
+        $params = [];
+        $where = [];
+        
+        if ($search) {
+            $where[] = "action LIKE ?";
+            $params[] = "%$search%";
+        }
+        
+        if ($userId) {
+            $where[] = "user_id = ?";
+            $params[] = $userId;
+        }
+        
+        if ($date) {
+            $where[] = "DATE(created_at) = ?";
+            $params[] = $date;
+        }
+        
+        $whereClause = $where ? "WHERE " . implode(" AND ", $where) : "";
+        
+        // 获取总数
+        $countQuery = "SELECT COUNT(*) as total FROM audit_logs $whereClause";
+        $stmt = $this->pdo->prepare($countQuery);
+        $stmt->execute($params);
+        $total = $stmt->fetchColumn();
+        
+        // 获取日志列表
+        $query = "SELECT al.*, u.username FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id $whereClause ORDER BY al.created_at DESC LIMIT ? OFFSET ?";
+        $stmt = $this->pdo->prepare($query);
+        $params[] = $limit;
+        $params[] = $offset;
+        $stmt->execute($params);
+        $logs = $stmt->fetchAll();
+        
+        // 格式化详情
+        foreach ($logs as &$log) {
+            $log['details'] = json_decode($log['details'], true);
+        }
+        
+        return [
+            'logs' => $logs,
+            'total' => $total
+        ];
+    }
+
+    // 备份管理相关方法
+    public function getBackups($page = 1, $limit = 20, $nodeId = '', $vmId = '', $status = '') {
+        $offset = ($page - 1) * $limit;
+        $params = [];
+        $where = [];
+        
+        if ($nodeId) {
+            $where[] = "b.node_id = ?";
+            $params[] = $nodeId;
+        }
+        
+        if ($vmId) {
+            $where[] = "b.vm_id = ?";
+            $params[] = $vmId;
+        }
+        
+        if ($status) {
+            $where[] = "b.status = ?";
+            $params[] = $status;
+        }
+        
+        $whereClause = $where ? "WHERE " . implode(" AND ", $where) : "";
+        
+        // 获取总数
+        $countQuery = "SELECT COUNT(*) as total FROM backups b $whereClause";
+        $stmt = $this->pdo->prepare($countQuery);
+        $stmt->execute($params);
+        $total = $stmt->fetchColumn();
+        
+        // 获取备份列表
+        $query = "SELECT b.*, n.name as node_name, v.name as vm_name FROM backups b LEFT JOIN pve_nodes n ON b.node_id = n.id LEFT JOIN vms v ON b.vm_id = v.id $whereClause ORDER BY b.created_at DESC LIMIT ? OFFSET ?";
+        $stmt = $this->pdo->prepare($query);
+        $params[] = $limit;
+        $params[] = $offset;
+        $stmt->execute($params);
+        $backups = $stmt->fetchAll();
+        
+        return [
+            'backups' => $backups,
+            'total' => $total
+        ];
+    }
+
+    public function createBackup($vmId, $name) {
+        // 验证虚拟机存在
+        $stmt = $this->pdo->prepare("SELECT * FROM vms WHERE id = ?");
+        $stmt->execute([$vmId]);
+        $vm = $stmt->fetch();
+        
+        if (!$vm) {
+            throw new Exception("虚拟机不存在");
+        }
+        
+        // 生成备份名称
+        $backupName = $name ?: "backup-" . date('Ymd-His');
+        
+        // 调用PVE API创建备份
+        $pveService = new PveApiService($this->pdo);
+        $result = $pveService->createBackup($vm['node_id'], $vm['vmid'], $backupName);
+        
+        if (!$result) {
+            throw new Exception("备份创建失败");
+        }
+        
+        // 保存到数据库
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO backups (node_id, vm_id, name, status, created_at) 
+             VALUES (?, ?, ?, 'completed', NOW())"
+        );
+        $stmt->execute([$vm['node_id'], $vmId, $backupName]);
+        
+        $this->auth->logAudit('create_backup', ['vm_id' => $vmId, 'backup_name' => $backupName]);
+        return $this->pdo->lastInsertId();
+    }
+
+    public function downloadBackup($backupId) {
+        // 验证备份存在
+        $stmt = $this->pdo->prepare("SELECT * FROM backups WHERE id = ?");
+        $stmt->execute([$backupId]);
+        $backup = $stmt->fetch();
+        
+        if (!$backup) {
+            throw new Exception("备份不存在");
+        }
+        
+        // 调用PVE API获取备份文件
+        $pveService = new PveApiService($this->pdo);
+        $filePath = $pveService->getBackupFile($backup['node_id'], $backup['name']);
+        
+        if (!$filePath) {
+            throw new Exception("备份文件不存在");
+        }
+        
+        // 设置下载头
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename=' . basename($filePath));
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
+        exit;
+    }
+
+    public function restoreBackup($backupId) {
+        // 验证备份存在
+        $stmt = $this->pdo->prepare("SELECT * FROM backups WHERE id = ?");
+        $stmt->execute([$backupId]);
+        $backup = $stmt->fetch();
+        
+        if (!$backup) {
+            throw new Exception("备份不存在");
+        }
+        
+        // 调用PVE API恢复备份
+        $pveService = new PveApiService($this->pdo);
+        $result = $pveService->restoreBackup($backup['node_id'], $backup['name']);
+        
+        if (!$result) {
+            throw new Exception("备份恢复失败");
+        }
+        
+        $this->auth->logAudit('restore_backup', ['backup_id' => $backupId]);
+        return true;
+    }
+
+    public function deleteBackup($backupId) {
+        // 验证备份存在
+        $stmt = $this->pdo->prepare("SELECT * FROM backups WHERE id = ?");
+        $stmt->execute([$backupId]);
+        $backup = $stmt->fetch();
+        
+        if (!$backup) {
+            throw new Exception("备份不存在");
+        }
+        
+        // 调用PVE API删除备份
+        $pveService = new PveApiService($this->pdo);
+        $result = $pveService->deleteBackup($backup['node_id'], $backup['name']);
+        
+        if (!$result) {
+            throw new Exception("备份删除失败");
+        }
+        
+        // 从数据库中删除
+        $stmt = $this->pdo->prepare("DELETE FROM backups WHERE id = ?");
+        $stmt->execute([$backupId]);
+        
+        $this->auth->logAudit('delete_backup', ['backup_id' => $backupId]);
+        return true;
     }
 
     // ========== 统计数据 ==========
@@ -434,5 +926,80 @@ class AdminController {
         $stats['monthly'] = $stmt->fetch();
         
         return $stats;
+    }
+
+    // 网络配置管理相关方法
+    public function getNetworks() {
+        $stmt = $this->pdo->prepare("SELECT n.*, pn.name as node_name FROM networks n LEFT JOIN pve_nodes pn ON n.node_id = pn.id ORDER BY n.id DESC");
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function createNetwork($data) {
+        if (!isset($data['name']) || !isset($data['type']) || !isset($data['node_id'])) {
+            throw new Exception("缺少必要参数");
+        }
+        
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO networks (name, type, node_id, status, config, created_at) 
+             VALUES (?, ?, ?, ?, ?, NOW())"
+        );
+        $stmt->execute([
+            $data['name'],
+            $data['type'],
+            $data['node_id'],
+            $data['status'] ?? 'active',
+            $data['config'] ?? ''
+        ]);
+        
+        $networkId = $this->pdo->lastInsertId();
+        $this->auth->logAudit('create_network', ['network_id' => $networkId, 'name' => $data['name']]);
+        return $networkId;
+    }
+
+    public function updateNetwork($networkId, $data) {
+        // 验证网络配置存在
+        $stmt = $this->pdo->prepare("SELECT * FROM networks WHERE id = ?");
+        $stmt->execute([$networkId]);
+        $network = $stmt->fetch();
+        
+        if (!$network) {
+            throw new Exception("网络配置不存在");
+        }
+        
+        $stmt = $this->pdo->prepare(
+            "UPDATE networks 
+             SET name = ?, type = ?, node_id = ?, status = ?, config = ? 
+             WHERE id = ?"
+        );
+        $stmt->execute([
+            $data['name'],
+            $data['type'],
+            $data['node_id'],
+            $data['status'] ?? 'active',
+            $data['config'] ?? '',
+            $networkId
+        ]);
+        
+        $this->auth->logAudit('update_network', ['network_id' => $networkId, 'name' => $data['name']]);
+        return true;
+    }
+
+    public function deleteNetwork($networkId) {
+        // 验证网络配置存在
+        $stmt = $this->pdo->prepare("SELECT * FROM networks WHERE id = ?");
+        $stmt->execute([$networkId]);
+        $network = $stmt->fetch();
+        
+        if (!$network) {
+            throw new Exception("网络配置不存在");
+        }
+        
+        // 从数据库中删除
+        $stmt = $this->pdo->prepare("DELETE FROM networks WHERE id = ?");
+        $stmt->execute([$networkId]);
+        
+        $this->auth->logAudit('delete_network', ['network_id' => $networkId]);
+        return true;
     }
 }

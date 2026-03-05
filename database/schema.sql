@@ -37,9 +37,11 @@ CREATE TABLE vms (
     node_id INT NOT NULL,
     user_id INT NULL,  -- NULL表示未分配
     name VARCHAR(100),
+    type ENUM('kvm', 'lxc') DEFAULT 'lxc',
     status ENUM('running', 'stopped', 'paused') DEFAULT 'stopped',
     config JSON NOT NULL,
     expires_at TIMESTAMP NULL,
+    last_sync TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (node_id) REFERENCES pve_nodes(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -47,6 +49,7 @@ CREATE TABLE vms (
 
 CREATE INDEX idx_node_id ON vms(node_id);
 CREATE INDEX idx_user_id ON vms(user_id);
+CREATE INDEX idx_type ON vms(type);
 
 -- 产品套餐表
 CREATE TABLE products (
@@ -148,3 +151,34 @@ CREATE TABLE site_config (
     description VARCHAR(255),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 备份表
+CREATE TABLE backups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    node_id INT NOT NULL,
+    vm_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    size BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (node_id) REFERENCES pve_nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_backups_node ON backups(node_id);
+CREATE INDEX idx_backups_vm ON backups(vm_id);
+
+-- 网络配置表
+CREATE TABLE networks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type ENUM('bridge', 'vlan', 'bond') NOT NULL,
+    node_id INT NOT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    config TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (node_id) REFERENCES pve_nodes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_networks_node ON networks(node_id);

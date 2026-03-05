@@ -113,14 +113,15 @@ class PaymentService {
         if ($result) {
             // 保存到数据库
             $stmt = $this->pdo->prepare(
-                "INSERT INTO vms (vmid, node_id, user_id, name, status, config, expires_at) 
-                 VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL ? DAY)"
+                "INSERT INTO vms (vmid, node_id, user_id, name, type, status, config, expires_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW() + INTERVAL ? DAY)"
             );
             $stmt->execute([
                 $vmid,
                 $order['node_id'],
                 $order['user_id'],
                 "VM-" . substr(md5($orderId), 0, 8),
+                'lxc',
                 'running',
                 json_encode($vmConfig),
                 $order['duration_days']
@@ -219,5 +220,52 @@ class PaymentService {
             $this->pdo->rollback();
             throw $e;
         }
+    }
+
+    // 生成支付链接
+    public function generatePaymentUrl($order, $gateway, $gatewayConfig) {
+        $baseUrl = $gatewayConfig['url'] ?? '';
+        
+        switch ($gateway['name']) {
+            case 'alipay':
+                $params = [
+                    'out_trade_no' => $order['id'],
+                    'subject' => '产品购买',
+                    'total_amount' => $order['amount'],
+                    'notify_url' => $gatewayConfig['notify_url'] ?? '',
+                    'return_url' => $gatewayConfig['return_url'] ?? ''
+                ];
+                break;
+            case 'wechat':
+                $params = [
+                    'out_trade_no' => $order['id'],
+                    'body' => '产品购买',
+                    'total_fee' => $order['amount'] * 100, // 微信支付以分为单位
+                    'notify_url' => $gatewayConfig['notify_url'] ?? '',
+                    'return_url' => $gatewayConfig['return_url'] ?? ''
+                ];
+                break;
+            case 'epay':
+                $params = [
+                    'pid' => $gatewayConfig['pid'],
+                    'type' => $gatewayConfig['type'] ?? 'alipay',
+                    'out_trade_no' => $order['id'],
+                    'notify_url' => $gatewayConfig['notify_url'] ?? '',
+                    'return_url' => $gatewayConfig['return_url'] ?? '',
+                    'name' => '产品购买',
+                    'money' => $order['amount'],
+                    'sitename' => $gatewayConfig['sitename'] ?? ''
+                ];
+                // 生成签名
+                $params['sign'] = $this->generatePaymentSign($params, $gatewayConfig['key']);
+                $params['sign_type'] = 'MD5';
+                break;
+            default:
+                throw new Exception("不支持的支付方式");
+        }
+        
+        // 构建支付链接
+        $queryString = http_build_query($params);
+        return $baseUrl . '?' . $queryString;
     }
 }

@@ -63,6 +63,9 @@
                                 <a class="nav-link" href="#" @click="currentView = 'products'" v-if="user.role !== 'admin'">产品购买</a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link" href="#" @click="currentView = 'payment'" v-if="user.role !== 'admin'">支付页面</a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link" href="#" @click="currentView = 'admin'" v-if="user.role === 'admin'">管理后台</a>
                             </li>
                         </ul>
@@ -77,50 +80,1192 @@
             <!-- 内容区域 -->
             <div v-if="currentView === 'dashboard'">
                 <h2>仪表板</h2>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">系统状态</h5>
-                        <p class="card-text">欢迎使用 PVE 虚拟机管理系统</p>
+                <div v-if="loadingStats" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载统计数据中...</p>
+                </div>
+                <div v-else>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                        <div class="col">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">总用户数</h5>
+                                    <p class="card-text display-4">{{ stats.users.total_users || 0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">活跃用户</h5>
+                                    <p class="card-text display-4">{{ stats.users.active_users || 0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">总虚拟机</h5>
+                                    <p class="card-text display-4">{{ stats.vms.total_vms || 0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">运行中虚拟机</h5>
+                                    <p class="card-text display-4">{{ stats.vms.running_vms || 0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">订单统计</h5>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <p class="card-text">总订单数: {{ stats.orders.total_orders || 0 }}</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="card-text">已支付订单: {{ stats.orders.paid_orders || 0 }}</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="card-text">总收入: ¥{{ stats.orders.total_revenue || 0 }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <div v-else-if="currentView === 'vms'">
                 <h2>虚拟机管理</h2>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">虚拟机列表</h5>
-                        <p class="card-text">这里显示所有虚拟机</p>
+                <div v-if="loadingVms" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载虚拟机列表中...</p>
+                </div>
+                <div v-else>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名称</th>
+                                    <th>节点</th>
+                                    <th>用户</th>
+                                    <th>状态</th>
+                                    <th>到期时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="vm in vms" :key="vm.id">
+                                    <td>{{ vm.id }}</td>
+                                    <td>{{ vm.name }}</td>
+                                    <td>{{ vm.node_name }}</td>
+                                    <td>{{ vm.username }}</td>
+                                    <td>{{ vm.status }}</td>
+                                    <td>{{ vm.expires_at || '永久' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @click="controlVm(vm.id, 'start')">启动</button>
+                                        <button class="btn btn-sm btn-secondary" @click="controlVm(vm.id, 'stop')">停止</button>
+                                        <button class="btn btn-sm btn-info" @click="controlVm(vm.id, 'restart')">重启</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
             
             <div v-else-if="currentView === 'myvms'">
                 <h2>我的虚拟机</h2>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">我的虚拟机列表</h5>
-                        <p class="card-text">这里显示您的虚拟机</p>
+                <div v-if="loadingVms" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载虚拟机列表中...</p>
+                </div>
+                <div v-else>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名称</th>
+                                    <th>节点</th>
+                                    <th>状态</th>
+                                    <th>到期时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="vm in vms" :key="vm.id">
+                                    <td>{{ vm.id }}</td>
+                                    <td>{{ vm.name }}</td>
+                                    <td>{{ vm.node_name }}</td>
+                                    <td>{{ vm.status }}</td>
+                                    <td>{{ vm.expires_at || '永久' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @click="controlVm(vm.id, 'start')">启动</button>
+                                        <button class="btn btn-sm btn-secondary" @click="controlVm(vm.id, 'stop')">停止</button>
+                                        <button class="btn btn-sm btn-info" @click="controlVm(vm.id, 'restart')">重启</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
             
             <div v-else-if="currentView === 'products'">
                 <h2>产品购买</h2>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">产品列表</h5>
-                        <p class="card-text">这里显示可用的产品</p>
+                <div v-if="loadingProducts" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载产品列表中...</p>
+                </div>
+                <div v-else>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        <div v-for="product in products" :key="product.id" class="col">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ product.name }}</h5>
+                                    <p class="card-text">{{ product.description }}</p>
+                                    <p class="card-text">价格: ¥{{ product.price }}</p>
+                                    <p class="card-text">有效期: {{ product.duration_days }}天</p>
+                                    <button class="btn btn-primary w-100" @click="buyProduct(product.id)">购买</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 支付页面 -->
+            <div v-else-if="currentView === 'payment'">
+                <h2>支付页面</h2>
+                <div v-if="loadingPayment" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载支付信息中...</p>
+                </div>
+                <div v-else>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">订单信息</h5>
+                            <p><strong>订单号:</strong> {{ paymentOrder.id }}</p>
+                            <p><strong>产品名称:</strong> {{ paymentOrder.product_name }}</p>
+                            <p><strong>金额:</strong> ¥{{ paymentOrder.amount }}</p>
+                            <p><strong>创建时间:</strong> {{ paymentOrder.created_at }}</p>
+                            
+                            <h5 class="card-title mt-4">选择支付方式</h5>
+                            <div class="row">
+                                <div class="col-md-4" v-for="gateway in paymentGateways" :key="gateway.id">
+                                    <div class="card mb-3" :class="{ 'border-primary': selectedGateway === gateway.id }">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" :id="'gateway-' + gateway.id" v-model="selectedGateway" :value="gateway.id">
+                                                <label class="form-check-label" :for="'gateway-' + gateway.id">{{ gateway.name }}</label>
+                                            </div>
+                                            <p class="card-text mt-2">{{ gateway.description }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary" @click="processPayment" :disabled="!selectedGateway">立即支付</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <div v-else-if="currentView === 'admin'">
                 <h2>管理后台</h2>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">管理员功能</h5>
-                        <p class="card-text">这里是管理员功能</p>
+                <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'users'">用户管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'products'">产品管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'orders'">订单管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'vms'">虚拟机管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'nodes'">节点管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'logs'">日志管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'backups'">备份管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'network'">网络配置</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="adminView = 'configs'">系统设置</a>
+                    </li>
+                </ul>
+                
+                <div class="mt-4">
+                    <!-- 用户管理 -->
+                    <div v-if="adminView === 'users'">
+                        <h3>用户管理</h3>
+                        <button @click="showAddUserModal = true" class="btn btn-primary mb-3">添加用户</button>
+                        <div v-if="loadingUsers" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载用户列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>状态</th>
+                                            <th>创建时间</th>
+                                            <th>最后登录</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="user in users" :key="user.id">
+                                            <td>{{ user.id }}</td>
+                                            <td>{{ user.username }}</td>
+                                            <td>{{ user.email }}</td>
+                                            <td>{{ user.role }}</td>
+                                            <td>{{ user.status }}</td>
+                                            <td>{{ user.created_at }}</td>
+                                            <td>{{ user.last_login || '从未登录' }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="editUser(user)">编辑</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteUser(user.id)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 添加/编辑用户模态框 -->
+                        <div v-if="showAddUserModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ editingUser ? '编辑用户' : '添加用户' }}</h5>
+                                        <button type="button" class="close" @click="showAddUserModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">用户名</label>
+                                            <input type="text" v-model="userForm.username" class="form-control" placeholder="用户名">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">邮箱</label>
+                                            <input type="email" v-model="userForm.email" class="form-control" placeholder="邮箱">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">密码</label>
+                                            <input type="password" v-model="userForm.password" class="form-control" placeholder="密码（编辑时可留空）">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">角色</label>
+                                            <select v-model="userForm.role" class="form-control">
+                                                <option value="user">普通用户</option>
+                                                <option value="admin">管理员</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">状态</label>
+                                            <select v-model="userForm.status" class="form-control">
+                                                <option value="active">活跃</option>
+                                                <option value="disabled">禁用</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showAddUserModal = false">取消</button>
+                                        <button type="button" class="btn btn-primary" @click="saveUser">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 产品管理 -->
+                    <div v-else-if="adminView === 'products'">
+                        <h3>产品管理</h3>
+                        <button @click="showAddProductModal = true" class="btn btn-primary mb-3">添加产品</button>
+                        <div v-if="loadingProducts" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载产品列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                <div v-for="product in products" :key="product.id" class="col">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ product.name }}</h5>
+                                            <p class="card-text">{{ product.description }}</p>
+                                            <p class="card-text">价格: ¥{{ product.price }}</p>
+                                            <p class="card-text">有效期: {{ product.duration_days }}天</p>
+                                            <p class="card-text">状态: {{ product.status }}</p>
+                                            <div class="mt-3">
+                                                <button class="btn btn-sm btn-primary" @click="editProduct(product)">编辑</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteProduct(product.id)">删除</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 添加/编辑产品模态框 -->
+                        <div v-if="showAddProductModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ editingProduct ? '编辑产品' : '添加产品' }}</h5>
+                                        <button type="button" class="close" @click="showAddProductModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">产品名称</label>
+                                            <input type="text" v-model="productForm.name" class="form-control" placeholder="产品名称">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">产品描述</label>
+                                            <textarea v-model="productForm.description" class="form-control" placeholder="产品描述"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">价格</label>
+                                            <input type="number" v-model="productForm.price" class="form-control" placeholder="价格" step="0.01" min="0">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">有效期（天）</label>
+                                            <input type="number" v-model="productForm.duration_days" class="form-control" placeholder="有效期" min="1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">状态</label>
+                                            <select v-model="productForm.status" class="form-control">
+                                                <option value="active">活跃</option>
+                                                <option value="inactive">停用</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showAddProductModal = false">取消</button>
+                                        <button type="button" class="btn btn-primary" @click="saveProduct">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 虚拟机管理 -->
+                    <div v-else-if="adminView === 'vms'">
+                        <h3>虚拟机管理</h3>
+                        <div class="mb-3">
+                            <input type="text" v-model="searchVms" class="form-control" placeholder="搜索虚拟机名称或ID">
+                            <button @click="loadVms" class="btn btn-primary mt-2">搜索</button>
+                        </div>
+                        <div v-if="loadingVms" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载虚拟机列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>名称</th>
+                                            <th>节点</th>
+                                            <th>用户</th>
+                                            <th>状态</th>
+                                            <th>到期时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="vm in vms" :key="vm.id">
+                                            <td>{{ vm.id }}</td>
+                                            <td>{{ vm.name }}</td>
+                                            <td>{{ vm.node_name }}</td>
+                                            <td>{{ vm.username }}</td>
+                                            <td>{{ vm.status }}</td>
+                                            <td>{{ vm.expires_at || '永久' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @click="viewVm(vm.id)">详情</button>
+                                        <button class="btn btn-sm btn-danger" @click="deleteVm(vm.id)">删除</button>
+                                        <button class="btn btn-sm btn-primary" @click="controlVm(vm.id, 'start')">启动</button>
+                                        <button class="btn btn-sm btn-secondary" @click="controlVm(vm.id, 'stop')">停止</button>
+                                        <button class="btn btn-sm btn-info" @click="controlVm(vm.id, 'restart')">重启</button>
+                                    </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 订单管理 -->
+                    <div v-else-if="adminView === 'orders'">
+                        <h3>订单管理</h3>
+                        <div class="mb-3">
+                            <select v-model="orderStatus" class="form-control">
+                                <option value="">所有状态</option>
+                                <option value="pending">待支付</option>
+                                <option value="paid">已支付</option>
+                                <option value="cancelled">已取消</option>
+                            </select>
+                            <button @click="loadOrders" class="btn btn-primary mt-2">查询</button>
+                        </div>
+                        <div v-if="loadingOrders" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载订单列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>订单ID</th>
+                                            <th>用户</th>
+                                            <th>产品</th>
+                                            <th>金额</th>
+                                            <th>状态</th>
+                                            <th>创建时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="order in orders" :key="order.id">
+                                            <td>{{ order.id }}</td>
+                                            <td>{{ order.username }}</td>
+                                            <td>{{ order.product_name }}</td>
+                                            <td>¥{{ order.amount }}</td>
+                                            <td>{{ order.status }}</td>
+                                            <td>{{ order.created_at }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="viewOrder(order.id)">详情</button>
+                                                <button class="btn btn-sm btn-info" @click="updateOrderStatus(order.id, order.status)">更新状态</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteOrder(order.id)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 订单详情模态框 -->
+                        <div v-if="showOrderDetailModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">订单详情</h5>
+                                        <button type="button" class="close" @click="showOrderDetailModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body" v-if="orderDetail">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>订单ID:</strong> {{ orderDetail.id }}</p>
+                                                <p><strong>用户:</strong> {{ orderDetail.username }}</p>
+                                                <p><strong>产品:</strong> {{ orderDetail.product_name }}</p>
+                                                <p><strong>金额:</strong> ¥{{ orderDetail.amount }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>状态:</strong> {{ orderDetail.status }}</p>
+                                                <p><strong>创建时间:</strong> {{ orderDetail.created_at }}</p>
+                                                <p><strong>支付时间:</strong> {{ orderDetail.paid_at || '未支付' }}</p>
+                                                <p><strong>支付方式:</strong> {{ orderDetail.payment_method || '未支付' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showOrderDetailModal = false">关闭</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 订单状态更新模态框 -->
+                        <div v-if="showUpdateStatusModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">更新订单状态</h5>
+                                        <button type="button" class="close" @click="showUpdateStatusModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">订单ID</label>
+                                            <input type="text" v-model="updateOrderId" class="form-control" disabled>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">当前状态</label>
+                                            <input type="text" v-model="currentOrderStatus" class="form-control" disabled>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">新状态</label>
+                                            <select v-model="newOrderStatus" class="form-control">
+                                                <option value="pending">待支付</option>
+                                                <option value="paid">已支付</option>
+                                                <option value="cancelled">已取消</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showUpdateStatusModal = false">取消</button>
+                                        <button type="button" class="btn btn-primary" @click="saveOrderStatus">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 虚拟机详情模态框 -->
+                    <div v-if="showVmDetailModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">虚拟机详情</h5>
+                                    <button type="button" class="close" @click="showVmDetailModal = false">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body" v-if="vmDetail">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>ID:</strong> {{ vmDetail.id }}</p>
+                                            <p><strong>名称:</strong> {{ vmDetail.name }}</p>
+                                            <p><strong>节点:</strong> {{ vmDetail.node_name }}</p>
+                                            <p><strong>用户:</strong> {{ vmDetail.username }}</p>
+                                            <p><strong>类型:</strong> {{ vmDetail.type }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>状态:</strong> {{ vmDetail.status }}</p>
+                                            <p><strong>到期时间:</strong> {{ vmDetail.expires_at || '永久' }}</p>
+                                            <p><strong>创建时间:</strong> {{ vmDetail.created_at }}</p>
+                                            <p><strong>配置:</strong> {{ vmDetail.config }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @click="showVmDetailModal = false">关闭</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 节点管理 -->
+                    <div v-else-if="adminView === 'nodes'">
+                        <h3>节点管理</h3>
+                        <button @click="showAddNodeModal = true" class="btn btn-primary mb-3">添加节点</button>
+                        <div v-if="loadingNodes" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载节点列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>名称</th>
+                                            <th>API URL</th>
+                                            <th>API用户</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="node in nodes" :key="node.id">
+                                            <td>{{ node.id }}</td>
+                                            <td>{{ node.name }}</td>
+                                            <td>{{ node.api_url }}</td>
+                                            <td>{{ node.api_user }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="viewNode(node.id)">详情</button>
+                                                <button class="btn btn-sm btn-primary" @click="editNode(node)">编辑</button>
+                                                <button class="btn btn-sm btn-success" @click="syncNode(node.id)">同步</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteNode(node.id)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 添加/编辑节点模态框 -->
+                        <div v-if="showAddNodeModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ editingNode ? '编辑节点' : '添加节点' }}</h5>
+                                        <button type="button" class="close" @click="showAddNodeModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">节点名称</label>
+                                            <input type="text" v-model="nodeForm.name" class="form-control" placeholder="节点名称">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">API URL</label>
+                                            <input type="text" v-model="nodeForm.api_url" class="form-control" placeholder="API URL (如 https://pve.example.com:8006)">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">API用户</label>
+                                            <input type="text" v-model="nodeForm.api_user" class="form-control" placeholder="API用户 (如 root@pam)">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">API Token</label>
+                                            <input type="text" v-model="nodeForm.api_token" class="form-control" placeholder="API Token (如 tokenID=tokenValue)">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showAddNodeModal = false">取消</button>
+                                        <button type="button" class="btn btn-primary" @click="saveNode">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 节点详情模态框 -->
+                    <div v-if="showNodeDetailModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">节点详情</h5>
+                                    <button type="button" class="close" @click="showNodeDetailModal = false">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body" v-if="nodeDetail">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>ID:</strong> {{ nodeDetail.id }}</p>
+                                            <p><strong>名称:</strong> {{ nodeDetail.name }}</p>
+                                            <p><strong>API URL:</strong> {{ nodeDetail.api_url }}</p>
+                                            <p><strong>API用户:</strong> {{ nodeDetail.api_user }}</p>
+                                            <p><strong>状态:</strong> {{ nodeDetail.status || '未知' }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>最后同步:</strong> {{ nodeDetail.last_sync || '从未同步' }}</p>
+                                            <p><strong>同步状态:</strong> {{ nodeDetail.sync_status || '未同步' }}</p>
+                                            <p><strong>虚拟机数量:</strong> {{ nodeDetail.vm_count || 0 }}</p>
+                                            <p><strong>容器数量:</strong> {{ nodeDetail.container_count || 0 }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <h6>系统状态</h6>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <p><strong>CPU使用率:</strong> {{ nodeDetail.cpu_usage || '未知' }}</p>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <p><strong>内存使用率:</strong> {{ nodeDetail.memory_usage || '未知' }}</p>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <p><strong>磁盘使用率:</strong> {{ nodeDetail.disk_usage || '未知' }}</p>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <p><strong>网络流量:</strong> {{ nodeDetail.network_traffic || '未知' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @click="showNodeDetailModal = false">关闭</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 备份管理 -->
+                    <div v-else-if="adminView === 'backups'">
+                        <h3>备份管理</h3>
+                        <div class="mb-3">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <select v-model="backupNode" class="form-control">
+                                        <option value="">所有节点</option>
+                                        <option v-for="node in nodes" :key="node.id" :value="node.id">{{ node.name }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select v-model="backupVm" class="form-control">
+                                        <option value="">所有虚拟机</option>
+                                        <option v-for="vm in vms" :key="vm.id" :value="vm.id">{{ vm.name }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select v-model="backupStatus" class="form-control">
+                                        <option value="">所有状态</option>
+                                        <option value="completed">已完成</option>
+                                        <option value="running">运行中</option>
+                                        <option value="failed">失败</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button @click="loadBackups" class="btn btn-primary w-100">查询</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="loadingBackups" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载备份中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>节点</th>
+                                            <th>虚拟机</th>
+                                            <th>备份名称</th>
+                                            <th>大小</th>
+                                            <th>状态</th>
+                                            <th>创建时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="backup in backups" :key="backup.id">
+                                            <td>{{ backup.id }}</td>
+                                            <td>{{ backup.node_name }}</td>
+                                            <td>{{ backup.vm_name }}</td>
+                                            <td>{{ backup.name }}</td>
+                                            <td>{{ backup.size }}</td>
+                                            <td>{{ backup.status }}</td>
+                                            <td>{{ backup.created_at }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="downloadBackup(backup.id)">下载</button>
+                                                <button class="btn btn-sm btn-info" @click="restoreBackup(backup.id)">恢复</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteBackup(backup.id)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination">
+                                        <li class="page-item" :class="{ 'disabled': backupPage === 1 }">
+                                            <a class="page-link" href="#" @click="backupPage--; loadBackups()">上一页</a>
+                                        </li>
+                                        <li class="page-item" v-for="page in Math.ceil(backupTotal / backupLimit)" :key="page" :class="{ 'active': page === backupPage }">
+                                            <a class="page-link" href="#" @click="backupPage = page; loadBackups()">{{ page }}</a>
+                                        </li>
+                                        <li class="page-item" :class="{ 'disabled': backupPage === Math.ceil(backupTotal / backupLimit) }">
+                                            <a class="page-link" href="#" @click="backupPage++; loadBackups()">下一页</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                            <div class="mt-3">
+                                <h4>创建备份</h4>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <select v-model="createBackupVm" class="form-control">
+                                            <option value="">选择虚拟机</option>
+                                            <option v-for="vm in vms" :key="vm.id" :value="vm.id">{{ vm.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" v-model="backupName" class="form-control" placeholder="备份名称">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-primary w-100" @click="createBackup" :disabled="!createBackupVm">创建备份</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 网络配置管理 -->
+                    <div v-else-if="adminView === 'network'">
+                        <h3>网络配置管理</h3>
+                        <button @click="showAddNetworkModal = true" class="btn btn-primary mb-3">添加网络配置</button>
+                        <div v-if="loadingNetworks" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载网络配置列表中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>名称</th>
+                                            <th>类型</th>
+                                            <th>状态</th>
+                                            <th>节点</th>
+                                            <th>创建时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="network in networks" :key="network.id">
+                                            <td>{{ network.id }}</td>
+                                            <td>{{ network.name }}</td>
+                                            <td>{{ network.type }}</td>
+                                            <td>{{ network.status }}</td>
+                                            <td>{{ network.node_name }}</td>
+                                            <td>{{ network.created_at }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="editNetwork(network)">编辑</button>
+                                                <button class="btn btn-sm btn-danger" @click="deleteNetwork(network.id)">删除</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 添加/编辑网络配置模态框 -->
+                        <div v-if="showAddNetworkModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ editingNetwork ? '编辑网络配置' : '添加网络配置' }}</h5>
+                                        <button type="button" class="close" @click="showAddNetworkModal = false">
+                                            <span>&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">网络名称</label>
+                                            <input type="text" v-model="networkForm.name" class="form-control" placeholder="网络名称">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">网络类型</label>
+                                            <select v-model="networkForm.type" class="form-control">
+                                                <option value="bridge">Bridge</option>
+                                                <option value="vlan">VLAN</option>
+                                                <option value="bond">Bond</option>
+                                                <option value="OVS">OVS</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">所属节点</label>
+                                            <select v-model="networkForm.node_id" class="form-control">
+                                                <option v-for="node in nodes" :key="node.id" :value="node.id">{{ node.name }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">状态</label>
+                                            <select v-model="networkForm.status" class="form-control">
+                                                <option value="active">活跃</option>
+                                                <option value="inactive">停用</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">配置详情</label>
+                                            <textarea v-model="networkForm.config" class="form-control" placeholder="网络配置详情"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" @click="showAddNetworkModal = false">取消</button>
+                                        <button type="button" class="btn btn-primary" @click="saveNetwork">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统设置 -->
+                    <div v-else-if="adminView === 'configs'">
+                        <h3>系统设置</h3>
+                        <ul class="nav nav-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="configTab = 'basic'">基本设置</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="configTab = 'payment'">支付设置</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="configTab = 'email'">邮件设置</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="configTab = 'advanced'">高级设置</a>
+                            </li>
+                        </ul>
+                        <div class="mt-4">
+                            <!-- 基本设置 -->
+                            <div v-if="configTab === 'basic'">
+                                <h4>基本设置</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">网站名称</label>
+                                            <input type="text" v-model="basicConfig.site_name" class="form-control" placeholder="网站名称">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">网站域名</label>
+                                            <input type="text" v-model="basicConfig.site_domain" class="form-control" placeholder="网站域名">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">联系邮箱</label>
+                                            <input type="email" v-model="basicConfig.contact_email" class="form-control" placeholder="联系邮箱">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">网站状态</label>
+                                            <select v-model="basicConfig.site_status" class="form-control">
+                                                <option value="online">在线</option>
+                                                <option value="maintenance">维护中</option>
+                                                <option value="offline">离线</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">首页标题</label>
+                                            <input type="text" v-model="basicConfig.home_title" class="form-control" placeholder="首页标题">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">首页描述</label>
+                                            <textarea v-model="basicConfig.home_description" class="form-control" placeholder="首页描述"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">备案号</label>
+                                            <input type="text" v-model="basicConfig.icp_number" class="form-control" placeholder="备案号">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">版权信息</label>
+                                            <input type="text" v-model="basicConfig.copyright" class="form-control" placeholder="版权信息">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" @click="saveBasicConfig">保存基本设置</button>
+                            </div>
+                            
+                            <!-- 支付设置 -->
+                            <div v-if="configTab === 'payment'">
+                                <h4>支付设置</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">易支付接口地址</label>
+                                            <input type="text" v-model="paymentConfig.epay_url" class="form-control" placeholder="易支付接口地址">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">易支付商户ID</label>
+                                            <input type="text" v-model="paymentConfig.epay_pid" class="form-control" placeholder="易支付商户ID">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">易支付密钥</label>
+                                            <input type="password" v-model="paymentConfig.epay_key" class="form-control" placeholder="易支付密钥">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">支付方式</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" v-model="paymentConfig.enable_alipay" id="alipay">
+                                                <label class="form-check-label" for="alipay">支付宝</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" v-model="paymentConfig.enable_wechat" id="wechat">
+                                                <label class="form-check-label" for="wechat">微信支付</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" v-model="paymentConfig.enable_qq" id="qq">
+                                                <label class="form-check-label" for="qq">QQ钱包</label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">支付回调地址</label>
+                                            <input type="text" v-model="paymentConfig.notify_url" class="form-control" placeholder="支付回调地址" disabled>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" @click="savePaymentConfig">保存支付设置</button>
+                            </div>
+                            
+                            <!-- 邮件设置 -->
+                            <div v-if="configTab === 'email'">
+                                <h4>邮件设置</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP服务器</label>
+                                            <input type="text" v-model="emailConfig.smtp_server" class="form-control" placeholder="SMTP服务器">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP端口</label>
+                                            <input type="number" v-model="emailConfig.smtp_port" class="form-control" placeholder="SMTP端口">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP用户名</label>
+                                            <input type="text" v-model="emailConfig.smtp_username" class="form-control" placeholder="SMTP用户名">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP密码</label>
+                                            <input type="password" v-model="emailConfig.smtp_password" class="form-control" placeholder="SMTP密码">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">发件人邮箱</label>
+                                            <input type="email" v-model="emailConfig.sender_email" class="form-control" placeholder="发件人邮箱">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">发件人名称</label>
+                                            <input type="text" v-model="emailConfig.sender_name" class="form-control" placeholder="发件人名称">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">邮件模板</label>
+                                            <select v-model="emailConfig.template" class="form-control">
+                                                <option value="default">默认模板</option>
+                                                <option value="simple">简洁模板</option>
+                                                <option value="fancy">精美模板</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">邮件发送状态</label>
+                                            <select v-model="emailConfig.status" class="form-control">
+                                                <option value="enabled">启用</option>
+                                                <option value="disabled">禁用</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" @click="saveEmailConfig">保存邮件设置</button>
+                            </div>
+                            
+                            <!-- 高级设置 -->
+                            <div v-if="configTab === 'advanced'">
+                                <h4>高级设置</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">系统时区</label>
+                                            <input type="text" v-model="advancedConfig.timezone" class="form-control" placeholder="系统时区">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">语言</label>
+                                            <select v-model="advancedConfig.language" class="form-control">
+                                                <option value="zh-CN">简体中文</option>
+                                                <option value="en-US">English</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">管理员邮箱</label>
+                                            <input type="email" v-model="advancedConfig.admin_email" class="form-control" placeholder="管理员邮箱">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">日志级别</label>
+                                            <select v-model="advancedConfig.log_level" class="form-control">
+                                                <option value="debug">调试</option>
+                                                <option value="info">信息</option>
+                                                <option value="warn">警告</option>
+                                                <option value="error">错误</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">缓存时间（秒）</label>
+                                            <input type="number" v-model="advancedConfig.cache_time" class="form-control" placeholder="缓存时间">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">API访问限制</label>
+                                            <input type="number" v-model="advancedConfig.api_limit" class="form-control" placeholder="API访问限制">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" @click="saveAdvancedConfig">保存高级设置</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 日志管理 -->
+                    <div v-else-if="adminView === 'logs'">
+                        <h3>日志管理</h3>
+                        <div class="mb-3">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <input type="text" v-model="logSearch" class="form-control" placeholder="搜索操作">
+                                </div>
+                                <div class="col-md-3">
+                                    <select v-model="logUser" class="form-control">
+                                        <option value="">所有用户</option>
+                                        <option v-for="user in users" :key="user.id" :value="user.id">{{ user.username }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" v-model="logDate" class="form-control">
+                                </div>
+                                <div class="col-md-3">
+                                    <button @click="loadLogs" class="btn btn-primary w-100">查询</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="loadingLogs" class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>加载日志中...</p>
+                        </div>
+                        <div v-else>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户</th>
+                                            <th>操作</th>
+                                            <th>详情</th>
+                                            <th>IP地址</th>
+                                            <th>时间</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="log in logs" :key="log.id">
+                                            <td>{{ log.id }}</td>
+                                            <td>{{ log.username }}</td>
+                                            <td>{{ log.action }}</td>
+                                            <td>{{ log.details }}</td>
+                                            <td>{{ log.ip_address }}</td>
+                                            <td>{{ log.created_at }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination">
+                                        <li class="page-item" :class="{ 'disabled': logPage === 1 }">
+                                            <a class="page-link" href="#" @click="logPage--; loadLogs()">上一页</a>
+                                        </li>
+                                        <li class="page-item" v-for="page in Math.ceil(logTotal / logLimit)" :key="page" :class="{ 'active': page === logPage }">
+                                            <a class="page-link" href="#" @click="logPage = page; loadLogs()">{{ page }}</a>
+                                        </li>
+                                        <li class="page-item" :class="{ 'disabled': logPage === Math.ceil(logTotal / logLimit) }">
+                                            <a class="page-link" href="#" @click="logPage++; loadLogs()">下一页</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -146,13 +1291,211 @@
                         user: null,
                         balance: 0,
                         currentView: 'dashboard',
+                        adminView: 'users',
                         loginForm: { email: '', password: '' },
                         logining: false,
-                        error: null
+                        error: null,
+                        // 统计数据
+                        loadingStats: false,
+                        stats: {
+                            users: {},
+                            vms: {},
+                            orders: {}
+                        },
+                        // 虚拟机数据
+                        loadingVms: false,
+                        vms: [],
+                        searchVms: '',
+                        // 产品数据
+                        loadingProducts: false,
+                        products: [],
+                        // 用户数据
+                        loadingUsers: false,
+                        users: [],
+                        // 订单数据
+                        loadingOrders: false,
+                        orders: [],
+                        orderStatus: '',
+                        // 节点数据
+                        loadingNodes: false,
+                        nodes: [],
+                        showAddNodeModal: false,
+                        editingNode: null,
+                        nodeForm: {
+                            name: '',
+                            api_url: '',
+                            api_user: '',
+                            api_token: ''
+                        },
+                        // 配置数据
+                        loadingConfigs: false,
+                        configs: [],
+                        showAddConfigModal: false,
+                        editingConfig: null,
+                        configForm: {
+                            key: '',
+                            value: '',
+                            description: ''
+                        },
+                        // 用户管理数据
+                        showAddUserModal: false,
+                        editingUser: null,
+                        userForm: {
+                            username: '',
+                            email: '',
+                            password: '',
+                            role: 'user',
+                            status: 'active'
+                        },
+                        // 产品管理数据
+                        showAddProductModal: false,
+                        editingProduct: null,
+                        productForm: {
+                            name: '',
+                            description: '',
+                            price: 0,
+                            duration_days: 30,
+                            status: 'active'
+                        },
+                        // 订单管理数据
+                        showOrderDetailModal: false,
+                        showUpdateStatusModal: false,
+                        orderDetail: null,
+                        updateOrderId: '',
+                        currentOrderStatus: '',
+                        newOrderStatus: '',
+                        // 虚拟机管理数据
+                        showVmDetailModal: false,
+                        vmDetail: null,
+                        // 节点管理数据
+                        showNodeDetailModal: false,
+                        nodeDetail: null,
+                        // 系统设置数据
+                        configTab: 'basic',
+                        basicConfig: {
+                            site_name: '',
+                            site_domain: '',
+                            contact_email: '',
+                            site_status: 'online',
+                            home_title: '',
+                            home_description: '',
+                            icp_number: '',
+                            copyright: ''
+                        },
+                        paymentConfig: {
+                            epay_url: '',
+                            epay_pid: '',
+                            epay_key: '',
+                            enable_alipay: true,
+                            enable_wechat: true,
+                            enable_qq: false,
+                            notify_url: ''
+                        },
+                        emailConfig: {
+                            smtp_server: '',
+                            smtp_port: 465,
+                            smtp_username: '',
+                            smtp_password: '',
+                            sender_email: '',
+                            sender_name: '',
+                            template: 'default',
+                            status: 'enabled'
+                        },
+                        advancedConfig: {
+                            timezone: 'Asia/Shanghai',
+                            language: 'zh-CN',
+                            admin_email: '',
+                            log_level: 'info',
+                            cache_time: 3600,
+                            api_limit: 1000
+                        },
+                        // 支付相关数据
+                        loadingPayment: false,
+                        paymentOrder: {
+                            id: '',
+                            product_name: '',
+                            amount: 0,
+                            created_at: ''
+                        },
+                        paymentGateways: [],
+                        selectedGateway: '',
+                        // 日志管理数据
+                        loadingLogs: false,
+                        logs: [],
+                        logPage: 1,
+                        logLimit: 20,
+                        logTotal: 0,
+                        logSearch: '',
+                        logUser: '',
+                        logDate: '',
+                        // 备份管理数据
+                        loadingBackups: false,
+                        backups: [],
+                        backupPage: 1,
+                        backupLimit: 20,
+                        backupTotal: 0,
+                        backupNode: '',
+                        backupVm: '',
+                        backupStatus: '',
+                        createBackupVm: '',
+                        backupName: '',
+                        // 网络配置管理数据
+                        loadingNetworks: false,
+                        networks: [],
+                        showAddNetworkModal: false,
+                        editingNetwork: null,
+                        networkForm: {
+                            name: '',
+                            type: 'bridge',
+                            node_id: '',
+                            status: 'active',
+                            config: ''
+                        }
                     };
                 },
                 mounted() {
                     this.checkLogin();
+                },
+                watch: {
+                    currentView(newView) {
+                        if (newView === 'dashboard') {
+                            this.loadStats();
+                        } else if (newView === 'vms' || newView === 'myvms') {
+                            this.loadVms();
+                        } else if (newView === 'products') {
+                            this.loadProducts();
+                        } else if (newView === 'payment') {
+                            this.loadPaymentGateways();
+                        } else if (newView === 'admin') {
+                            this.loadUsers();
+                            this.loadProducts();
+                            this.loadVms();
+                            this.loadOrders();
+                            this.loadNodes();
+                            this.loadConfigs();
+                        }
+                    },
+                    adminView(newView) {
+                        if (newView === 'users') {
+                            this.loadUsers();
+                        } else if (newView === 'products') {
+                            this.loadProducts();
+                        } else if (newView === 'vms') {
+                            this.loadVms();
+                        } else if (newView === 'orders') {
+                            this.loadOrders();
+                        } else if (newView === 'nodes') {
+                            this.loadNodes();
+                        } else if (newView === 'logs') {
+                            this.loadLogs();
+                        } else if (newView === 'backups') {
+                            this.loadBackups();
+                        } else if (newView === 'network') {
+                            this.loadNetworks();
+                        } else if (newView === 'configs') {
+                            this.loadConfigs();
+                        }
+                    }
                 },
                 methods: {
                     checkLogin() {
@@ -161,6 +1504,18 @@
                                 if (response.data.success) {
                                     this.user = response.data.user;
                                     this.balance = response.data.balance;
+                                    // 登录成功后加载数据
+                                    if (this.currentView === 'dashboard') {
+                                        this.loadStats();
+                                    } else if (this.currentView === 'vms' || this.currentView === 'myvms') {
+                                        this.loadVms();
+                                    } else if (this.currentView === 'products') {
+                                        this.loadProducts();
+                                    } else if (this.currentView === 'admin') {
+                                        this.loadUsers();
+                                        this.loadProducts();
+                                        this.loadVms();
+                                    }
                                 } else {
                                     this.user = null;
                                 }
@@ -181,6 +1536,18 @@
                             .then(response => {
                                 if (response.data.success) {
                                     this.user = response.data.user;
+                                    // 登录成功后加载数据
+                                    if (this.currentView === 'dashboard') {
+                                        this.loadStats();
+                                    } else if (this.currentView === 'vms' || this.currentView === 'myvms') {
+                                        this.loadVms();
+                                    } else if (this.currentView === 'products') {
+                                        this.loadProducts();
+                                    } else if (this.currentView === 'admin') {
+                                        this.loadUsers();
+                                        this.loadProducts();
+                                        this.loadVms();
+                                    }
                                 } else {
                                     this.error = response.data.message;
                                 }
@@ -201,6 +1568,826 @@
                             .catch(error => {
                                 console.error('Logout error:', error);
                             });
+                    },
+                    loadStats() {
+                        this.loadingStats = true;
+                        axios.get('/api/admin/stats')
+                            .then(response => {
+                                console.log('Stats response:', response.data);
+                                if (response.data.success) {
+                                    this.stats = response.data.stats;
+                                } else {
+                                    console.error('Load stats failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load stats error:', error);
+                                alert('加载统计数据失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingStats = false;
+                            });
+                    },
+                    loadVms(refresh = false) {
+                        this.loadingVms = true;
+                        axios.get('/api/vms', {
+                            params: { refresh: refresh ? 1 : 0 }
+                        })
+                            .then(response => {
+                                console.log('VMs response:', response.data);
+                                if (response.data.success) {
+                                    this.vms = response.data.vms;
+                                } else {
+                                    console.error('Load vms failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load vms error:', error);
+                                alert('加载虚拟机列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingVms = false;
+                            });
+                    },
+                    refreshVms() {
+                        this.loadVms(true);
+                    },
+                    loadProducts() {
+                        this.loadingProducts = true;
+                        axios.get('/api/products')
+                            .then(response => {
+                                console.log('Products response:', response.data);
+                                if (response.data.success) {
+                                    this.products = response.data.products;
+                                } else {
+                                    console.error('Load products failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load products error:', error);
+                                alert('加载产品列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingProducts = false;
+                            });
+                    },
+                    loadUsers() {
+                        this.loadingUsers = true;
+                        axios.get('/api/admin/users')
+                            .then(response => {
+                                console.log('Users response:', response.data);
+                                if (response.data.success) {
+                                    this.users = response.data.users;
+                                } else {
+                                    console.error('Load users failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load users error:', error);
+                                alert('加载用户列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingUsers = false;
+                            });
+                    },
+                    controlVm(vmId, action) {
+                        axios.post(`/api/vms/${vmId}/control`, { action: action })
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('操作成功');
+                                    this.loadVms();
+                                } else {
+                                    alert('操作失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Control vm error:', error);
+                                alert('操作失败，请检查网络连接');
+                            });
+                    },
+                    buyProduct(productId) {
+                        if (confirm('确定购买此产品吗？')) {
+                            axios.post('/api/orders/create', { product_id: productId })
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('订单创建成功，订单号: ' + response.data.order_id);
+                                    } else {
+                                        alert('订单创建失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Buy product error:', error);
+                                    alert('订单创建失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 订单管理方法
+                    loadOrders() {
+                        this.loadingOrders = true;
+                        axios.get('/api/admin/orders', {
+                            params: {
+                                status: this.orderStatus
+                            }
+                        })
+                            .then(response => {
+                                console.log('Orders response:', response.data);
+                                if (response.data.success) {
+                                    this.orders = response.data.orders;
+                                } else {
+                                    console.error('Load orders failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load orders error:', error);
+                                alert('加载订单列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingOrders = false;
+                            });
+                    },
+                    deleteOrder(orderId) {
+                        if (confirm('确定删除此订单吗？')) {
+                            axios.delete(`/api/admin/orders/${orderId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('订单删除成功');
+                                        this.loadOrders();
+                                    } else {
+                                        alert('订单删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete order error:', error);
+                                    alert('订单删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 节点管理方法
+                    loadNodes() {
+                        this.loadingNodes = true;
+                        axios.get('/api/admin/nodes')
+                            .then(response => {
+                                console.log('Nodes response:', response.data);
+                                if (response.data.success) {
+                                    this.nodes = response.data.nodes;
+                                } else {
+                                    console.error('Load nodes failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load nodes error:', error);
+                                alert('加载节点列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingNodes = false;
+                            });
+                    },
+                    editNode(node) {
+                        this.editingNode = node;
+                        this.nodeForm = {
+                            name: node.name,
+                            api_url: node.api_url,
+                            api_user: node.api_user,
+                            api_token: node.api_token
+                        };
+                        this.showAddNodeModal = true;
+                    },
+                    saveNode() {
+                        if (!this.nodeForm.name || !this.nodeForm.api_url || !this.nodeForm.api_user || !this.nodeForm.api_token) {
+                            alert('请填写所有必填字段');
+                            return;
+                        }
+                        
+                        if (this.editingNode) {
+                            // 编辑节点
+                            axios.put(`/api/admin/nodes/${this.editingNode.id}`, this.nodeForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('节点更新成功');
+                                        this.showAddNodeModal = false;
+                                        this.loadNodes();
+                                    } else {
+                                        alert('节点更新失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Update node error:', error);
+                                    alert('节点更新失败，请检查网络连接');
+                                });
+                        } else {
+                            // 添加节点
+                            axios.post('/api/admin/nodes', this.nodeForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('节点添加成功');
+                                        this.showAddNodeModal = false;
+                                        this.loadNodes();
+                                    } else {
+                                        alert('节点添加失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Add node error:', error);
+                                    alert('节点添加失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    deleteNode(nodeId) {
+                        if (confirm('确定删除此节点吗？')) {
+                            axios.delete(`/api/admin/nodes/${nodeId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('节点删除成功');
+                                        this.loadNodes();
+                                    } else {
+                                        alert('节点删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete node error:', error);
+                                    alert('节点删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    syncNode(nodeId) {
+                        if (confirm('确定同步此节点的虚拟机吗？')) {
+                            axios.post(`/api/admin/nodes/${nodeId}/sync`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('节点同步成功，同步了 ' + response.data.synced_count + ' 台虚拟机');
+                                        this.loadVms();
+                                    } else {
+                                        alert('节点同步失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Sync node error:', error);
+                                    alert('节点同步失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 配置管理方法
+                    loadConfigs() {
+                        this.loadingConfigs = true;
+                        axios.get('/api/admin/configs')
+                            .then(response => {
+                                console.log('Configs response:', response.data);
+                                if (response.data.success) {
+                                    this.configs = response.data.configs;
+                                } else {
+                                    console.error('Load configs failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load configs error:', error);
+                                alert('加载配置失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingConfigs = false;
+                            });
+                    },
+                    editConfig(config) {
+                        this.editingConfig = config;
+                        this.configForm = {
+                            key: config.key,
+                            value: config.value,
+                            description: config.description
+                        };
+                        this.showAddConfigModal = true;
+                    },
+                    // 用户管理方法
+                    editUser(user) {
+                        this.editingUser = user;
+                        this.userForm = {
+                            username: user.username,
+                            email: user.email,
+                            password: '',
+                            role: user.role,
+                            status: user.status
+                        };
+                        this.showAddUserModal = true;
+                    },
+                    saveUser() {
+                        if (!this.userForm.username || !this.userForm.email) {
+                            alert('请填写用户名和邮箱');
+                            return;
+                        }
+                        
+                        if (!this.editingUser && !this.userForm.password) {
+                            alert('请设置密码');
+                            return;
+                        }
+                        
+                        if (this.editingUser) {
+                            // 编辑用户
+                            axios.put(`/api/admin/users/${this.editingUser.id}`, this.userForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('用户更新成功');
+                                        this.showAddUserModal = false;
+                                        this.loadUsers();
+                                    } else {
+                                        alert('用户更新失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Update user error:', error);
+                                    alert('用户更新失败，请检查网络连接');
+                                });
+                        } else {
+                            // 添加用户
+                            axios.post('/api/admin/users', this.userForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('用户添加成功');
+                                        this.showAddUserModal = false;
+                                        this.loadUsers();
+                                    } else {
+                                        alert('用户添加失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Add user error:', error);
+                                    alert('用户添加失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    deleteUser(userId) {
+                        if (confirm('确定删除此用户吗？')) {
+                            axios.delete(`/api/admin/users/${userId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('用户删除成功');
+                                        this.loadUsers();
+                                    } else {
+                                        alert('用户删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete user error:', error);
+                                    alert('用户删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 产品管理方法
+                    editProduct(product) {
+                        this.editingProduct = product;
+                        this.productForm = {
+                            name: product.name,
+                            description: product.description,
+                            price: product.price,
+                            duration_days: product.duration_days,
+                            status: product.status
+                        };
+                        this.showAddProductModal = true;
+                    },
+                    saveProduct() {
+                        if (!this.productForm.name || !this.productForm.description) {
+                            alert('请填写产品名称和描述');
+                            return;
+                        }
+                        
+                        if (this.editingProduct) {
+                            // 编辑产品
+                            axios.put(`/api/admin/products/${this.editingProduct.id}`, this.productForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('产品更新成功');
+                                        this.showAddProductModal = false;
+                                        this.loadProducts();
+                                    } else {
+                                        alert('产品更新失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Update product error:', error);
+                                    alert('产品更新失败，请检查网络连接');
+                                });
+                        } else {
+                            // 添加产品
+                            axios.post('/api/admin/products', this.productForm)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('产品添加成功');
+                                        this.showAddProductModal = false;
+                                        this.loadProducts();
+                                    } else {
+                                        alert('产品添加失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Add product error:', error);
+                                    alert('产品添加失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    deleteProduct(productId) {
+                        if (confirm('确定删除此产品吗？')) {
+                            axios.delete(`/api/admin/products/${productId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('产品删除成功');
+                                        this.loadProducts();
+                                    } else {
+                                        alert('产品删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete product error:', error);
+                                    alert('产品删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 订单管理方法
+                    viewOrder(orderId) {
+                        axios.get(`/api/admin/orders/${orderId}`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.orderDetail = response.data.order;
+                                    this.showOrderDetailModal = true;
+                                } else {
+                                    alert('获取订单详情失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('View order error:', error);
+                                alert('获取订单详情失败，请检查网络连接');
+                            });
+                    },
+                    updateOrderStatus(orderId, currentStatus) {
+                        this.updateOrderId = orderId;
+                        this.currentOrderStatus = currentStatus;
+                        this.newOrderStatus = currentStatus;
+                        this.showUpdateStatusModal = true;
+                    },
+                    saveOrderStatus() {
+                        if (this.newOrderStatus === this.currentOrderStatus) {
+                            alert('状态未改变');
+                            return;
+                        }
+                        
+                        axios.put(`/api/admin/orders/${this.updateOrderId}/status`, {
+                            status: this.newOrderStatus
+                        })
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('订单状态更新成功');
+                                    this.showUpdateStatusModal = false;
+                                    this.loadOrders();
+                                } else {
+                                    alert('订单状态更新失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Update order status error:', error);
+                                alert('订单状态更新失败，请检查网络连接');
+                            });
+                    },
+                    // 虚拟机管理方法
+                    viewVm(vmId) {
+                        axios.get(`/api/vms/${vmId}`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.vmDetail = response.data.vm;
+                                    this.showVmDetailModal = true;
+                                } else {
+                                    alert('获取虚拟机详情失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('View vm error:', error);
+                                alert('获取虚拟机详情失败，请检查网络连接');
+                            });
+                    },
+                    // 节点管理方法
+                    viewNode(nodeId) {
+                        axios.get(`/api/admin/nodes/${nodeId}`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.nodeDetail = response.data.node;
+                                    this.showNodeDetailModal = true;
+                                } else {
+                                    alert('获取节点详情失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('View node error:', error);
+                                alert('获取节点详情失败，请检查网络连接');
+                            });
+                    },
+                    // 系统设置方法
+                    saveBasicConfig() {
+                        axios.post('/api/admin/configs/basic', this.basicConfig)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('基本设置保存成功');
+                                } else {
+                                    alert('基本设置保存失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Save basic config error:', error);
+                                alert('基本设置保存失败，请检查网络连接');
+                            });
+                    },
+                    savePaymentConfig() {
+                        axios.post('/api/admin/configs/payment', this.paymentConfig)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('支付设置保存成功');
+                                } else {
+                                    alert('支付设置保存失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Save payment config error:', error);
+                                alert('支付设置保存失败，请检查网络连接');
+                            });
+                    },
+                    saveEmailConfig() {
+                        axios.post('/api/admin/configs/email', this.emailConfig)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('邮件设置保存成功');
+                                } else {
+                                    alert('邮件设置保存失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Save email config error:', error);
+                                alert('邮件设置保存失败，请检查网络连接');
+                            });
+                    },
+                    saveAdvancedConfig() {
+                        axios.post('/api/admin/configs/advanced', this.advancedConfig)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('高级设置保存成功');
+                                } else {
+                                    alert('高级设置保存失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Save advanced config error:', error);
+                                alert('高级设置保存失败，请检查网络连接');
+                            });
+                    },
+                    // 支付相关方法
+                    loadPaymentGateways() {
+                        axios.get('/api/payment/gateways')
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.paymentGateways = response.data.gateways;
+                                } else {
+                                    console.error('Load payment gateways failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load payment gateways error:', error);
+                            });
+                    },
+                    processPayment() {
+                        if (!this.selectedGateway) {
+                            alert('请选择支付方式');
+                            return;
+                        }
+                        
+                        axios.post('/api/payment/process', {
+                            order_id: this.paymentOrder.id,
+                            gateway_id: this.selectedGateway
+                        })
+                            .then(response => {
+                                if (response.data.success) {
+                                    // 跳转到支付页面
+                                    window.location.href = response.data.payment_url;
+                                } else {
+                                    alert('支付处理失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Process payment error:', error);
+                                alert('支付处理失败，请检查网络连接');
+                            });
+                    },
+                    // 日志管理方法
+                    loadLogs() {
+                        this.loadingLogs = true;
+                        axios.get('/api/admin/logs', {
+                            params: {
+                                page: this.logPage,
+                                limit: this.logLimit,
+                                search: this.logSearch,
+                                user_id: this.logUser,
+                                date: this.logDate
+                            }
+                        })
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.logs = response.data.logs;
+                                    this.logTotal = response.data.total;
+                                } else {
+                                    console.error('Load logs failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load logs error:', error);
+                                alert('加载日志失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingLogs = false;
+                            });
+                    },
+                    // 备份管理方法
+                    loadBackups() {
+                        this.loadingBackups = true;
+                        axios.get('/api/admin/backups', {
+                            params: {
+                                page: this.backupPage,
+                                limit: this.backupLimit,
+                                node_id: this.backupNode,
+                                vm_id: this.backupVm,
+                                status: this.backupStatus
+                            }
+                        })
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.backups = response.data.backups;
+                                    this.backupTotal = response.data.total;
+                                } else {
+                                    console.error('Load backups failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load backups error:', error);
+                                alert('加载备份失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingBackups = false;
+                            });
+                    },
+                    createBackup() {
+                        if (!this.createBackupVm) {
+                            alert('请选择虚拟机');
+                            return;
+                        }
+                        
+                        axios.post('/api/admin/backups', {
+                            vm_id: this.createBackupVm,
+                            name: this.backupName
+                        })
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('备份创建成功');
+                                    this.loadBackups();
+                                } else {
+                                    alert('备份创建失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Create backup error:', error);
+                                alert('备份创建失败，请检查网络连接');
+                            });
+                    },
+                    downloadBackup(backupId) {
+                        window.location.href = `/api/admin/backups/${backupId}/download`;
+                    },
+                    restoreBackup(backupId) {
+                        if (confirm('确定要恢复此备份吗？')) {
+                            axios.post(`/api/admin/backups/${backupId}/restore`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('备份恢复成功');
+                                        this.loadBackups();
+                                    } else {
+                                        alert('备份恢复失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Restore backup error:', error);
+                                    alert('备份恢复失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    deleteBackup(backupId) {
+                        if (confirm('确定要删除此备份吗？')) {
+                            axios.delete(`/api/admin/backups/${backupId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('备份删除成功');
+                                        this.loadBackups();
+                                    } else {
+                                        alert('备份删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete backup error:', error);
+                                    alert('备份删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 网络配置管理方法
+                    loadNetworks() {
+                        this.loadingNetworks = true;
+                        axios.get('/api/admin/networks')
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.networks = response.data.networks;
+                                } else {
+                                    console.error('Load networks failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load networks error:', error);
+                                alert('加载网络配置失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingNetworks = false;
+                            });
+                    },
+                    editNetwork(network) {
+                        this.editingNetwork = network;
+                        this.networkForm = {
+                            name: network.name,
+                            type: network.type,
+                            node_id: network.node_id,
+                            status: network.status,
+                            config: network.config
+                        };
+                        this.showAddNetworkModal = true;
+                    },
+                    saveNetwork() {
+                        if (!this.networkForm.name) {
+                            alert('请输入网络名称');
+                            return;
+                        }
+                        
+                        if (!this.networkForm.node_id) {
+                            alert('请选择所属节点');
+                            return;
+                        }
+                        
+                        const url = this.editingNetwork ? 
+                            `/api/admin/networks/${this.editingNetwork.id}` : 
+                            '/api/admin/networks';
+                        const method = this.editingNetwork ? 'put' : 'post';
+                        
+                        axios[method](url, this.networkForm)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert(this.editingNetwork ? '网络配置更新成功' : '网络配置添加成功');
+                                    this.showAddNetworkModal = false;
+                                    this.loadNetworks();
+                                    this.editingNetwork = null;
+                                    this.networkForm = {
+                                        name: '',
+                                        type: 'bridge',
+                                        node_id: '',
+                                        status: 'active',
+                                        config: ''
+                                    };
+                                } else {
+                                    alert('操作失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Save network error:', error);
+                                alert('操作失败，请检查网络连接');
+                            });
+                    },
+                    deleteNetwork(networkId) {
+                        if (confirm('确定要删除此网络配置吗？')) {
+                            axios.delete(`/api/admin/networks/${networkId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('网络配置删除成功');
+                                        this.loadNetworks();
+                                    } else {
+                                        alert('网络配置删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete network error:', error);
+                                    alert('网络配置删除失败，请检查网络连接');
+                                });
+                        }
+                    },
+                    // 虚拟机管理方法
+                    deleteVm(vmId) {
+                        if (confirm('确定删除此虚拟机记录吗？')) {
+                            axios.delete(`/api/admin/vms/${vmId}`)
+                                .then(response => {
+                                    if (response.data.success) {
+                                        alert('虚拟机记录删除成功');
+                                        this.loadVms();
+                                    } else {
+                                        alert('虚拟机记录删除失败: ' + response.data.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Delete vm error:', error);
+                                    alert('虚拟机记录删除失败，请检查网络连接');
+                                });
+                        }
                     }
                 }
             }).mount('#app');
