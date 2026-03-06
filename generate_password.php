@@ -1,3 +1,6 @@
 <?php
-echo password_hash('123456', PASSWORD_DEFAULT);
+$newPassword = 'Admin@2024!';
+echo password_hash($newPassword, PASSWORD_DEFAULT);
+echo "\n";
+echo "新密码: $newPassword\n";
 ?>
