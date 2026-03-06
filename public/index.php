@@ -1,7 +1,7 @@
 <?php
 // 错误报告
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 // 时区设置
 date_default_timezone_set('Asia/Shanghai');
@@ -28,8 +28,8 @@ spl_autoload_register(function ($class) {
 session_start();
 
 // 加载配置
-require_once __DIR__ . '/../config/database.php';
 $dbConfig = require __DIR__ . '/../config/database.php';
+$appConfig = require __DIR__ . '/../config/app.php';
 
 // 数据库连接
 try {
@@ -39,8 +39,17 @@ try {
     die('数据库连接失败: ' . $e->getMessage());
 }
 
+// 初始化错误处理
+$errorHandler = new ErrorHandler($pdo, $appConfig['app']['debug']);
+$errorHandler->register();
+
+// 初始化日志
+$logger = new Logger($pdo, Logger::INFO);
+
 // 初始化中间件
 $auth = new AuthMiddleware($pdo);
+$csrf = new CsrfMiddleware();
+$rateLimiter = new RateLimiter($pdo, 60, 60);
 
 // 路由处理
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -63,7 +72,12 @@ function jsonResponse($data, $statusCode = 200) {
 // 路由定义
 $routes = [
     // 认证路由
-    'POST /api/register' => function() use ($pdo) {
+    'POST /api/register' => function() use ($pdo, $rateLimiter) {
+        $identifier = 'register:' . ($_SERVER['REMOTE_ADDR'] ?? '');
+        if (!$rateLimiter->check($identifier, 5, 3600)) {
+            jsonResponse(['success' => false, 'message' => '注册请求过于频繁，请1小时后再试'], 429);
+        }
+        
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             $controller = new UserController($pdo);
@@ -74,7 +88,12 @@ $routes = [
         }
     },
     
-    'POST /api/login' => function() use ($pdo) {
+    'POST /api/login' => function() use ($pdo, $rateLimiter) {
+        $identifier = 'login:' . ($_SERVER['REMOTE_ADDR'] ?? '');
+        if (!$rateLimiter->check($identifier, 10, 900)) {
+            jsonResponse(['success' => false, 'message' => '登录请求过于频繁，请15分钟后再试'], 429);
+        }
+        
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             $controller = new UserController($pdo);

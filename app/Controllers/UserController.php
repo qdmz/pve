@@ -1,9 +1,11 @@
 <?php
 class UserController {
     private $pdo;
+    private $mailService;
 
     public function __construct(PDO $pdo) {
         $this->pdo = $pdo;
+        $this->mailService = new MailService($pdo);
     }
 
     // 用户注册
@@ -34,7 +36,7 @@ class UserController {
         ]);
 
         // 发送激活邮件
-        $this->sendActivationEmail($email, $token);
+        $this->mailService->sendActivationEmail($email, $token, $username);
     }
 
     // 邮件激活
@@ -89,7 +91,7 @@ class UserController {
     // 密码重置
     public function requestPasswordReset($email) {
         $stmt = $this->pdo->prepare(
-            "SELECT id FROM users WHERE email = ?"
+            "SELECT id, username FROM users WHERE email = ?"
         );
         $stmt->execute([$email]);
         
@@ -104,7 +106,7 @@ class UserController {
              WHERE id = ?"
         )->execute([$token, $user['id']]);
 
-        $this->sendResetEmail($email, $token);
+        $this->mailService->sendPasswordResetEmail($email, $token, $user['username']);
     }
 
     public function resetPassword($token, $newPassword) {
@@ -127,23 +129,5 @@ class UserController {
             password_hash($newPassword, PASSWORD_DEFAULT),
             $user['id']
         ]);
-    }
-
-    // 私有方法
-    private function sendActivationEmail($email, $token) {
-        $subject = "请激活您的账户";
-        $activationLink = "https://".$_SERVER['HTTP_HOST']."/activate.php?token=$token";
-        $message = "点击激活链接完成注册: $activationLink";
-        
-        // 实际使用应使用更安全的邮件发送方式
-        mail($email, $subject, $message);
-    }
-
-    private function sendResetEmail($email, $token) {
-        $subject = "密码重置请求";
-        $resetLink = "https://".$_SERVER['HTTP_HOST']."/reset-password.php?token=$token";
-        $message = "点击链接重置密码: $resetLink";
-        
-        mail($email, $subject, $message);
     }
 }
