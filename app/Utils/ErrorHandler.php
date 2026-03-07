@@ -92,7 +92,8 @@ class ErrorHandler {
             $code = 500;
         } else {
             $message = $error->getMessage() ?? '服务器内部错误';
-            $code = $error->getCode() >= 400 ? $error->getCode() : 500;
+            // 确保返回整数状态码
+            $code = is_numeric($error->getCode()) && $error->getCode() >= 400 ? (int)$error->getCode() : 500;
         }
         
         http_response_code($code);

@@ -27,6 +27,9 @@ spl_autoload_register(function ($class) {
 // 启动会话
 session_start();
 
+// 加载环境变量处理
+require_once __DIR__ . '/../app/Utils/Env.php';
+
 // 加载配置
 $dbConfig = require __DIR__ . '/../config/database.php';
 $appConfig = require __DIR__ . '/../config/app.php';
@@ -126,6 +129,29 @@ $routes = [
         jsonResponse(['success' => true, 'user' => $user, 'balance' => $balance]);
     },
     
+    'GET /api/user/orders' => function() use ($pdo) {
+        if (!isset($_SESSION['user'])) {
+            jsonResponse(['success' => false, 'message' => '未登录'], 401);
+        }
+        
+        try {
+            $userId = $_SESSION['user']['id'];
+            $stmt = $pdo->prepare(
+                "SELECT o.*, p.name as product_name 
+                 FROM orders o 
+                 LEFT JOIN products p ON o.product_id = p.id
+                 WHERE o.user_id = ? 
+                 ORDER BY o.created_at DESC"
+            );
+            $stmt->execute([$userId]);
+            $orders = $stmt->fetchAll();
+            
+            jsonResponse(['success' => true, 'orders' => $orders]);
+        } catch (Exception $e) {
+            jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    },
+    
     // 虚拟机路由
     'GET /api/vms' => function() use ($pdo) {
         if (!isset($_SESSION['user'])) {
@@ -213,9 +239,19 @@ $routes = [
     },
     
     'GET /api/admin/stats' => function() use ($pdo) {
+        if (!isset($_SESSION['user'])) {
+            jsonResponse(['success' => false, 'message' => '未登录'], 401);
+        }
+        
         try {
             $controller = new AdminController($pdo, new AuthMiddleware($pdo));
-            $stats = $controller->getDashboardStats();
+            
+            if ($_SESSION['user']['role'] === 'admin') {
+                $stats = $controller->getDashboardStats();
+            } else {
+                $stats = $controller->getUserStats($_SESSION['user']['id']);
+            }
+            
             jsonResponse(['success' => true, 'stats' => $stats]);
         } catch (Exception $e) {
             jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
@@ -400,6 +436,17 @@ $routes = [
         }
     },
     
+    'POST /api/admin/vms/create' => function() use ($pdo) {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $controller = new AdminController($pdo, new AuthMiddleware($pdo));
+            $vmId = $controller->createVm($data);
+            jsonResponse(['success' => true, 'vm_id' => $vmId, 'message' => '虚拟机创建成功']);
+        } catch (Exception $e) {
+            jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    },
+    
     // 节点管理路由
     'GET /api/admin/nodes' => function() use ($pdo) {
         try {
@@ -448,6 +495,26 @@ $routes = [
             $controller = new AdminController($pdo, new AuthMiddleware($pdo));
             $node = $controller->getNodeDetail($id);
             jsonResponse(['success' => true, 'node' => $node]);
+        } catch (Exception $e) {
+            jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    },
+    
+    'GET /api/admin/nodes/:id/networks' => function($id) use ($pdo) {
+        try {
+            $service = new PveApiService($pdo);
+            $networks = $service->getNodeNetworks($id);
+            jsonResponse(['success' => true, 'networks' => $networks]);
+        } catch (Exception $e) {
+            jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    },
+    
+    'GET /api/admin/nodes/:id/templates' => function($id) use ($pdo) {
+        try {
+            $service = new PveApiService($pdo);
+            $templates = $service->getNodeTemplates($id);
+            jsonResponse(['success' => true, 'templates' => $templates]);
         } catch (Exception $e) {
             jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -744,17 +811,38 @@ $routes = [
                 throw new Exception("订单状态错误");
             }
             
-            // 验证网关存在
-            $stmt = $pdo->prepare("SELECT * FROM payment_gateways WHERE id = ? AND enabled = TRUE");
-            $stmt->execute([$data['gateway_id']]);
-            $gateway = $stmt->fetch();
+            // 从site_config表中获取支付设置
+            $stmt = $pdo->query(
+                "SELECT `key`, `value` FROM site_config WHERE `key` LIKE 'payment_%'"
+            );
+            $configs = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
             
-            if (!$gateway) {
-                throw new Exception("支付方式不存在或已禁用");
-            }
+            // 构建网关配置
+            $gatewayMap = [
+                1 => ['name' => 'epay', 'type' => 'alipay'],
+                2 => ['name' => 'alipay', 'type' => 'alipay'],
+                3 => ['name' => 'wechat', 'type' => 'wechat'],
+                4 => ['name' => 'qq', 'type' => 'qq']
+            ];
+            
+            $gatewayInfo = $gatewayMap[$data['gateway_id']] ?? $gatewayMap[1];
+            $gateway = [
+                'id' => $data['gateway_id'],
+                'name' => $gatewayInfo['name']
+            ];
+            
+            // 构建网关配置
+            $gatewayConfig = [
+                'url' => $configs['payment_epay_url'] ?? '',
+                'pid' => $configs['payment_epay_pid'] ?? '',
+                'key' => $configs['payment_epay_key'] ?? '',
+                'type' => $gatewayInfo['type'],
+                'sitename' => $configs['site_name'] ?? 'PVE管理系统',
+                'notify_url' => $configs['payment_notify_url'] ?? '',
+                'return_url' => $configs['payment_notify_url'] ?? ''
+            ];
             
             // 生成支付链接
-            $gatewayConfig = json_decode($gateway['config'], true);
             $paymentUrl = $paymentService->generatePaymentUrl($order, $gateway, $gatewayConfig);
             
             jsonResponse(['success' => true, 'payment_url' => $paymentUrl]);

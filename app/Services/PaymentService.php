@@ -8,10 +8,55 @@ class PaymentService {
 
     // 获取可用支付方式
     public function getAvailableGateways() {
+        // 从site_config表中获取支付设置
         $stmt = $this->pdo->query(
-            "SELECT * FROM payment_gateways WHERE enabled = TRUE"
+            "SELECT `key`, `value` FROM site_config WHERE `key` LIKE 'payment_%'"
         );
-        return $stmt->fetchAll();
+        $configs = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        
+        $gateways = [];
+        
+        // 检查是否配置了易支付
+        if (isset($configs['payment_epay_url']) && isset($configs['payment_epay_pid']) && isset($configs['payment_epay_key'])) {
+            $gateways[] = [
+                'id' => 1,
+                'name' => 'epay',
+                'description' => '易支付',
+                'enabled' => true
+            ];
+        }
+        
+        // 检查是否启用了支付宝
+        if (isset($configs['payment_enable_alipay']) && $configs['payment_enable_alipay'] == 1) {
+            $gateways[] = [
+                'id' => 2,
+                'name' => 'alipay',
+                'description' => '支付宝',
+                'enabled' => true
+            ];
+        }
+        
+        // 检查是否启用了微信支付
+        if (isset($configs['payment_enable_wechat']) && $configs['payment_enable_wechat'] == 1) {
+            $gateways[] = [
+                'id' => 3,
+                'name' => 'wechat',
+                'description' => '微信支付',
+                'enabled' => true
+            ];
+        }
+        
+        // 检查是否启用了QQ钱包
+        if (isset($configs['payment_enable_qq']) && $configs['payment_enable_qq'] == 1) {
+            $gateways[] = [
+                'id' => 4,
+                'name' => 'qq',
+                'description' => 'QQ钱包',
+                'enabled' => true
+            ];
+        }
+        
+        return $gateways;
     }
 
     // 获取所有产品

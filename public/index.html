@@ -63,7 +63,7 @@
                                 <a class="nav-link" href="#" @click="currentView = 'products'" v-if="user.role !== 'admin'">产品购买</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#" @click="currentView = 'payment'" v-if="user.role !== 'admin'">支付页面</a>
+                                <a class="nav-link" href="#" @click="currentView = 'myorders'" v-if="user.role !== 'admin'">我的订单</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="#" @click="currentView = 'admin'" v-if="user.role === 'admin'">管理后台</a>
@@ -79,14 +79,20 @@
             
             <!-- 内容区域 -->
             <div v-if="currentView === 'dashboard'">
-                <h2>仪表板</h2>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2>仪表板</h2>
+                    <button class="btn btn-primary" @click="refreshStats">
+                        <i class="bi bi-refresh"></i> 刷新数据
+                    </button>
+                </div>
                 <div v-if="loadingStats" class="text-center">
                     <div class="spinner-border" role="status"></div>
                     <p>加载统计数据中...</p>
                 </div>
                 <div v-else>
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-                        <div class="col">
+                        <!-- 管理员显示用户统计 -->
+                        <div class="col" v-if="user.role === 'admin'">
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">总用户数</h5>
@@ -94,7 +100,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col" v-if="user.role === 'admin'">
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">活跃用户</h5>
@@ -102,10 +108,12 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- 所有用户显示虚拟机统计 -->
                         <div class="col">
                             <div class="card">
                                 <div class="card-body">
-                                    <h5 class="card-title">总虚拟机</h5>
+                                    <h5 class="card-title" v-if="user.role === 'admin'">总虚拟机</h5>
+                                    <h5 class="card-title" v-else>我的虚拟机</h5>
                                     <p class="card-text display-4">{{ stats.vms.total_vms || 0 }}</p>
                                 </div>
                             </div>
@@ -113,7 +121,8 @@
                         <div class="col">
                             <div class="card">
                                 <div class="card-body">
-                                    <h5 class="card-title">运行中虚拟机</h5>
+                                    <h5 class="card-title" v-if="user.role === 'admin'">运行中虚拟机</h5>
+                                    <h5 class="card-title" v-else>我的运行中虚拟机</h5>
                                     <p class="card-text display-4">{{ stats.vms.running_vms || 0 }}</p>
                                 </div>
                             </div>
@@ -122,16 +131,20 @@
                     <div class="mt-4">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">订单统计</h5>
+                                <h5 class="card-title" v-if="user.role === 'admin'">订单统计</h5>
+                                <h5 class="card-title" v-else>我的订单统计</h5>
                                 <div class="row">
                                     <div class="col-md-4">
-                                        <p class="card-text">总订单数: {{ stats.orders.total_orders || 0 }}</p>
+                                        <p class="card-text" v-if="user.role === 'admin'">总订单数: {{ stats.orders.total_orders || 0 }}</p>
+                                        <p class="card-text" v-else>我的订单数: {{ stats.orders.total_orders || 0 }}</p>
                                     </div>
                                     <div class="col-md-4">
-                                        <p class="card-text">已支付订单: {{ stats.orders.paid_orders || 0 }}</p>
+                                        <p class="card-text" v-if="user.role === 'admin'">已支付订单: {{ stats.orders.paid_orders || 0 }}</p>
+                                        <p class="card-text" v-else>我的已支付订单: {{ stats.orders.paid_orders || 0 }}</p>
                                     </div>
                                     <div class="col-md-4">
-                                        <p class="card-text">总收入: ¥{{ stats.orders.total_revenue || 0 }}</p>
+                                        <p class="card-text" v-if="user.role === 'admin'">总收入: ¥{{ stats.orders.total_revenue || 0 }}</p>
+                                        <p class="card-text" v-else>我的消费: ¥{{ stats.orders.total_revenue || 0 }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -280,6 +293,75 @@
                 </div>
             </div>
             
+            <!-- 我的订单页面 -->
+            <div v-else-if="currentView === 'myorders'">
+                <h2>我的订单</h2>
+                <div v-if="loadingOrders" class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p>加载订单列表中...</p>
+                </div>
+                <div v-else>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>订单号</th>
+                                    <th>产品名称</th>
+                                    <th>金额</th>
+                                    <th>状态</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="order in userOrders" :key="order.id">
+                                    <td>{{ order.id }}</td>
+                                    <td>{{ order.product_name }}</td>
+                                    <td>¥{{ order.amount }}</td>
+                                    <td>{{ order.status }}</td>
+                                    <td>{{ order.created_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @click="viewUserOrder(order.id)">详情</button>
+                                        <button class="btn btn-sm btn-success" @click="payOrder(order.id)" v-if="order.status === 'pending'">支付</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 订单详情模态框 -->
+                <div class="modal" tabindex="-1" role="dialog" v-show="showUserOrderDetailModal">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">订单详情</h5>
+                                <button type="button" class="close" @click="showUserOrderDetailModal = false">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body" v-if="userOrderDetail">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>订单ID:</strong> {{ userOrderDetail.id }}</p>
+                                        <p><strong>产品名称:</strong> {{ userOrderDetail.product_name }}</p>
+                                        <p><strong>金额:</strong> ¥{{ userOrderDetail.amount }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>状态:</strong> {{ userOrderDetail.status }}</p>
+                                        <p><strong>创建时间:</strong> {{ userOrderDetail.created_at }}</p>
+                                        <p><strong>支付时间:</strong> {{ userOrderDetail.paid_at || '未支付' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @click="showUserOrderDetailModal = false">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div v-else-if="currentView === 'admin'">
                 <h2>管理后台</h2>
                 <ul class="nav nav-tabs">
@@ -316,7 +398,7 @@
                     <!-- 用户管理 -->
                     <div v-if="adminView === 'users'">
                         <h3>用户管理</h3>
-                        <button @click="showAddUserModal = true" class="btn btn-primary mb-3">添加用户</button>
+                        <button @click="editingUser = null; showAddUserModal = true" class="btn btn-primary mb-3">添加用户</button>
                         <div v-if="loadingUsers" class="text-center">
                             <div class="spinner-border" role="status"></div>
                             <p>加载用户列表中...</p>
@@ -405,7 +487,7 @@
                     <!-- 产品管理 -->
                     <div v-else-if="adminView === 'products'">
                         <h3>产品管理</h3>
-                        <button @click="showAddProductModal = true" class="btn btn-primary mb-3">添加产品</button>
+                        <button @click="editingProduct = null; showAddProductModal = true" class="btn btn-primary mb-3">添加产品</button>
                         <div v-if="loadingProducts" class="text-center">
                             <div class="spinner-border" role="status"></div>
                             <p>加载产品列表中...</p>
@@ -478,6 +560,7 @@
                     <div v-else-if="adminView === 'vms'">
                         <h3>虚拟机管理</h3>
                         <div class="mb-3">
+                            <button @click="showCreateVmModal = true" class="btn btn-primary mb-2">新建虚拟机</button>
                             <input type="text" v-model="searchVms" class="form-control" placeholder="搜索虚拟机名称或ID">
                             <button @click="loadVms" class="btn btn-primary mt-2">搜索</button>
                         </div>
@@ -513,6 +596,7 @@
                                         <button class="btn btn-sm btn-primary" @click="controlVm(vm.id, 'start')">启动</button>
                                         <button class="btn btn-sm btn-secondary" @click="controlVm(vm.id, 'stop')">停止</button>
                                         <button class="btn btn-sm btn-info" @click="controlVm(vm.id, 'restart')">重启</button>
+                                        <button class="btn btn-sm btn-warning" @click="transferVm(vm.id)">转移</button>
                                     </td>
                                         </tr>
                                     </tbody>
@@ -663,7 +747,12 @@
                                             <p><strong>状态:</strong> {{ vmDetail.status }}</p>
                                             <p><strong>到期时间:</strong> {{ vmDetail.expires_at || '永久' }}</p>
                                             <p><strong>创建时间:</strong> {{ vmDetail.created_at }}</p>
-                                            <p><strong>配置:</strong> {{ vmDetail.config }}</p>
+                                            <p><strong>CPU数量:</strong> {{ vmDetail.cpu_count || 0 }}</p>
+                                            <p><strong>内存大小:</strong> {{ vmDetail.memory_size || 0 }} MB</p>
+                                            <p><strong>硬盘大小:</strong> {{ vmDetail.disk_size || 0 }}</p>
+                                            <p><strong>操作系统:</strong> {{ vmDetail.os || 'Unknown' }}</p>
+                                            <p><strong>IP地址:</strong> {{ vmDetail.ip_addresses && vmDetail.ip_addresses.length > 0 ? vmDetail.ip_addresses.join(', ') : 'Not assigned' }}</p>
+                                            <p><strong>默认root密码:</strong> {{ vmDetail.root_password || 'Not set' }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -677,7 +766,7 @@
                     <!-- 节点管理 -->
                     <div v-else-if="adminView === 'nodes'">
                         <h3>节点管理</h3>
-                        <button @click="showAddNodeModal = true" class="btn btn-primary mb-3">添加节点</button>
+                        <button @click="editingNode = null; showAddNodeModal = true" class="btn btn-primary mb-3">添加节点</button>
                         <div v-if="loadingNodes" class="text-center">
                             <div class="spinner-border" role="status"></div>
                             <p>加载节点列表中...</p>
@@ -795,6 +884,118 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" @click="showNodeDetailModal = false">关闭</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 虚拟机转移归属模态框 -->
+                    <div v-if="showTransferVmModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">转移虚拟机归属</h5>
+                                    <button type="button" class="close" @click="showTransferVmModal = false">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">选择目标用户</label>
+                                        <select v-model="transferTargetUserId" class="form-control">
+                                            <option value="">请选择用户</option>
+                                            <option v-for="user in users" :key="user.id" :value="user.id">{{ user.username }} ({{ user.email }})</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @click="showTransferVmModal = false">取消</button>
+                                    <button type="button" class="btn btn-primary" @click="confirmTransferVm" :disabled="!transferTargetUserId">确认转移</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 新建虚拟机模态框 -->
+                    <div v-if="showCreateVmModal" class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">新建虚拟机</h5>
+                                    <button type="button" class="close" @click="showCreateVmModal = false">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">选择节点</label>
+                                                <select v-model="newVm.node_id" class="form-control" @change="loadNodeResources">
+                                                    <option value="">请选择节点</option>
+                                                    <option v-for="node in nodes" :key="node.id" :value="node.id">{{ node.name }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">虚拟机名称</label>
+                                                <input type="text" v-model="newVm.name" class="form-control" placeholder="请输入虚拟机名称">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">CPU数量</label>
+                                                <input type="number" v-model="newVm.cpu" class="form-control" placeholder="请输入CPU数量" min="1">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">内存大小 (MB)</label>
+                                                <input type="number" v-model="newVm.memory" class="form-control" placeholder="请输入内存大小" min="256">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">硬盘大小 (GB)</label>
+                                                <input type="number" v-model="newVm.disk" class="form-control" placeholder="请输入硬盘大小" min="1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">操作系统</label>
+                                                <select v-model="newVm.os" class="form-control">
+                                                    <option value="">请选择操作系统</option>
+                                                    <option v-for="template in nodeTemplates" :key="template.name" :value="template.name.replace('.tar.gz', '')">{{ template.name.replace('.tar.gz', '') }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">网络配置 (可多选)</label>
+                                                <div v-if="nodeNetworks.length > 0">
+                                                    <div v-for="network in nodeNetworks" :key="network.name" class="form-check">
+                                                        <input class="form-check-input" type="checkbox" :id="'network-' + network.name" v-model="selectedNetworks" :value="network.name">
+                                                        <label class="form-check-label" :for="'network-' + network.name">{{ network.name }}</label>
+                                                    </div>
+                                                </div>
+                                                <div v-else>
+                                                    <p class="text-muted">请先选择节点</p>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">IP地址</label>
+                                                <input type="text" v-model="newVm.ip" class="form-control" placeholder="留空使用DHCP">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">初始root密码</label>
+                                                <input type="password" v-model="newVm.password" class="form-control" placeholder="请输入初始root密码">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">归属用户</label>
+                                                <select v-model="newVm.user_id" class="form-control">
+                                                    <option value="">请选择用户</option>
+                                                    <option v-for="user in users" :key="user.id" :value="user.id">{{ user.username }} ({{ user.email }})</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @click="showCreateVmModal = false">取消</button>
+                                    <button type="button" class="btn btn-primary" @click="createVm" :disabled="loadingCreateVm">
+                                        {{ loadingCreateVm ? '创建中...' : '创建虚拟机' }}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1282,6 +1483,11 @@
 
         // 使用更简单的方式创建应用
         try {
+            // 检查Vue是否加载
+            if (typeof Vue === 'undefined') {
+                throw new Error('Vue is not defined');
+            }
+            
             const { createApp } = Vue;
             
             createApp({
@@ -1327,6 +1533,24 @@
                             api_user: '',
                             api_token: ''
                         },
+                        // 新建虚拟机数据
+                        showCreateVmModal: false,
+                        loadingCreateVm: false,
+                        newVm: {
+                            node_id: '',
+                            name: '',
+                            cpu: 1,
+                            memory: 512,
+                            disk: 10,
+                            os: '',
+                            ip: '',
+                            password: '',
+                            user_id: ''
+                        },
+                        // 节点资源数据
+                        nodeNetworks: [],
+                        nodeTemplates: [],
+                        selectedNetworks: [],
                         // 配置数据
                         loadingConfigs: false,
                         configs: [],
@@ -1354,6 +1578,11 @@
                             name: '',
                             description: '',
                             price: 0,
+                            vm_config: {
+                                cores: 1,
+                                memory: 2048,
+                                disk: 20
+                            },
                             duration_days: 30,
                             status: 'active'
                         },
@@ -1419,6 +1648,10 @@
                         },
                         paymentGateways: [],
                         selectedGateway: '',
+                        // 用户订单数据
+                        userOrders: [],
+                        userOrderDetail: null,
+                        showUserOrderDetailModal: false,
                         // 日志管理数据
                         loadingLogs: false,
                         logs: [],
@@ -1450,31 +1683,37 @@
                             node_id: '',
                             status: 'active',
                             config: ''
-                        }
+                        },
+                        // 虚拟机转移归属数据
+                        showTransferVmModal: false,
+                        transferVmId: '',
+                        transferTargetUserId: ''
                     };
                 },
                 mounted() {
                     this.checkLogin();
                 },
                 watch: {
-                    currentView(newView) {
-                        if (newView === 'dashboard') {
-                            this.loadStats();
-                        } else if (newView === 'vms' || newView === 'myvms') {
-                            this.loadVms();
-                        } else if (newView === 'products') {
-                            this.loadProducts();
-                        } else if (newView === 'payment') {
-                            this.loadPaymentGateways();
-                        } else if (newView === 'admin') {
-                            this.loadUsers();
-                            this.loadProducts();
-                            this.loadVms();
-                            this.loadOrders();
-                            this.loadNodes();
-                            this.loadConfigs();
-                        }
-                    },
+                        currentView(newView) {
+                            if (newView === 'dashboard') {
+                                this.loadStats();
+                            } else if (newView === 'vms' || newView === 'myvms') {
+                                this.loadVms();
+                            } else if (newView === 'products') {
+                                this.loadProducts();
+                            } else if (newView === 'payment') {
+                                this.loadPaymentGateways();
+                            } else if (newView === 'myorders') {
+                                this.loadUserOrders();
+                            } else if (newView === 'admin') {
+                                this.loadUsers();
+                                this.loadProducts();
+                                this.loadVms();
+                                this.loadOrders();
+                                this.loadNodes();
+                                this.loadConfigs();
+                            }
+                        },
                     adminView(newView) {
                         if (newView === 'users') {
                             this.loadUsers();
@@ -1527,6 +1766,10 @@
                             .finally(() => {
                                 this.loading = false;
                             });
+                    },
+                    // 强制刷新统计数据
+                    refreshStats() {
+                        this.loadStats();
                     },
                     login() {
                         this.logining = true;
@@ -1671,6 +1914,26 @@
                                 .then(response => {
                                     if (response.data.success) {
                                         alert('订单创建成功，订单号: ' + response.data.order_id);
+                                        // 跳转到支付页面
+                                        this.paymentOrder.id = response.data.order_id;
+                                        // 获取订单详情
+                                        axios.get('/api/admin/orders/' + response.data.order_id)
+                                            .then(orderResponse => {
+                                                if (orderResponse.data.success) {
+                                                    this.paymentOrder = {
+                                                        id: orderResponse.data.order.id,
+                                                        product_name: orderResponse.data.order.product_name,
+                                                        amount: orderResponse.data.order.amount,
+                                                        created_at: orderResponse.data.order.created_at
+                                                    };
+                                                }
+                                            })
+                                            .catch(error => {
+                                                console.error('Get order detail error:', error);
+                                            });
+                                        // 加载支付方式
+                                        this.loadPaymentGateways();
+                                        this.currentView = 'payment';
                                     } else {
                                         alert('订单创建失败: ' + response.data.message);
                                     }
@@ -1742,6 +2005,84 @@
                                 this.loadingNodes = false;
                             });
                     },
+                    // 加载节点资源（网络和模板）
+                    loadNodeResources() {
+                        if (!this.newVm.node_id) {
+                            this.nodeNetworks = [];
+                            this.nodeTemplates = [];
+                            this.selectedNetworks = [];
+                            return;
+                        }
+                        
+                        // 加载网络配置
+                        axios.get(`/api/admin/nodes/${this.newVm.node_id}/networks`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.nodeNetworks = response.data.networks;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load networks error:', error);
+                            });
+                        
+                        // 加载系统模板
+                        axios.get(`/api/admin/nodes/${this.newVm.node_id}/templates`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.nodeTemplates = response.data.templates;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load templates error:', error);
+                            });
+                    },
+                    // 新建虚拟机方法
+                    createVm() {
+                        if (!this.newVm.node_id || !this.newVm.name || !this.newVm.cpu || !this.newVm.memory || !this.newVm.disk || !this.newVm.os || this.selectedNetworks.length === 0 || !this.newVm.password || !this.newVm.user_id) {
+                            alert('请填写所有必填字段');
+                            return;
+                        }
+                        
+                        // 构建包含多个网络的请求数据
+                        const vmData = {
+                            ...this.newVm,
+                            networks: this.selectedNetworks
+                        };
+                        
+                        this.loadingCreateVm = true;
+                        axios.post('/api/admin/vms/create', vmData)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert('虚拟机创建成功');
+                                    this.showCreateVmModal = false;
+                                    this.loadVms();
+                                    // 重置表单
+                                    this.newVm = {
+                                        node_id: '',
+                                        name: '',
+                                        cpu: 1,
+                                        memory: 512,
+                                        disk: 10,
+                                        os: '',
+                                        ip: '',
+                                        password: '',
+                                        user_id: ''
+                                    };
+                                    this.nodeNetworks = [];
+                                    this.nodeTemplates = [];
+                                    this.selectedNetworks = [];
+                                } else {
+                                    alert('虚拟机创建失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Create VM error:', error);
+                                alert('虚拟机创建失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingCreateVm = false;
+                            });
+                    },
                     editNode(node) {
                         this.editingNode = node;
                         this.nodeForm = {
@@ -1765,6 +2106,13 @@
                                     if (response.data.success) {
                                         alert('节点更新成功');
                                         this.showAddNodeModal = false;
+                                        this.editingNode = null;
+                                        this.nodeForm = {
+                                            name: '',
+                                            api_url: '',
+                                            api_user: '',
+                                            api_token: ''
+                                        };
                                         this.loadNodes();
                                     } else {
                                         alert('节点更新失败: ' + response.data.message);
@@ -1781,6 +2129,12 @@
                                     if (response.data.success) {
                                         alert('节点添加成功');
                                         this.showAddNodeModal = false;
+                                        this.nodeForm = {
+                                            name: '',
+                                            api_url: '',
+                                            api_user: '',
+                                            api_token: ''
+                                        };
                                         this.loadNodes();
                                     } else {
                                         alert('节点添加失败: ' + response.data.message);
@@ -1834,6 +2188,22 @@
                                 console.log('Configs response:', response.data);
                                 if (response.data.success) {
                                     this.configs = response.data.configs;
+                                    // 应用配置到相应的配置对象
+                                    this.configs.forEach(config => {
+                                        if (config.key.startsWith('basic_')) {
+                                            const key = config.key.replace('basic_', '');
+                                            this.basicConfig[key] = config.value;
+                                        } else if (config.key.startsWith('payment_')) {
+                                            const key = config.key.replace('payment_', '');
+                                            this.paymentConfig[key] = config.value;
+                                        } else if (config.key.startsWith('email_')) {
+                                            const key = config.key.replace('email_', '');
+                                            this.emailConfig[key] = config.value;
+                                        } else if (config.key.startsWith('advanced_')) {
+                                            const key = config.key.replace('advanced_', '');
+                                            this.advancedConfig[key] = config.value;
+                                        }
+                                    });
                                 } else {
                                     console.error('Load configs failed:', response.data.message);
                                 }
@@ -1885,6 +2255,14 @@
                                     if (response.data.success) {
                                         alert('用户更新成功');
                                         this.showAddUserModal = false;
+                                        this.editingUser = null;
+                                        this.userForm = {
+                                            username: '',
+                                            email: '',
+                                            password: '',
+                                            role: 'user',
+                                            status: 'active'
+                                        };
                                         this.loadUsers();
                                     } else {
                                         alert('用户更新失败: ' + response.data.message);
@@ -1901,6 +2279,13 @@
                                     if (response.data.success) {
                                         alert('用户添加成功');
                                         this.showAddUserModal = false;
+                                        this.userForm = {
+                                            username: '',
+                                            email: '',
+                                            password: '',
+                                            role: 'user',
+                                            status: 'active'
+                                        };
                                         this.loadUsers();
                                     } else {
                                         alert('用户添加失败: ' + response.data.message);
@@ -1936,6 +2321,11 @@
                             name: product.name,
                             description: product.description,
                             price: product.price,
+                            vm_config: product.vm_config || {
+                                cores: 1,
+                                memory: 2048,
+                                disk: 20
+                            },
                             duration_days: product.duration_days,
                             status: product.status
                         };
@@ -1954,6 +2344,14 @@
                                     if (response.data.success) {
                                         alert('产品更新成功');
                                         this.showAddProductModal = false;
+                                        this.editingProduct = null;
+                                        this.productForm = {
+                                            name: '',
+                                            description: '',
+                                            price: 0,
+                                            duration_days: 30,
+                                            status: 'active'
+                                        };
                                         this.loadProducts();
                                     } else {
                                         alert('产品更新失败: ' + response.data.message);
@@ -1970,6 +2368,13 @@
                                     if (response.data.success) {
                                         alert('产品添加成功');
                                         this.showAddProductModal = false;
+                                        this.productForm = {
+                                            name: '',
+                                            description: '',
+                                            price: 0,
+                                            duration_days: 30,
+                                            status: 'active'
+                                        };
                                         this.loadProducts();
                                     } else {
                                         alert('产品添加失败: ' + response.data.message);
@@ -2169,6 +2574,80 @@
                                 alert('支付处理失败，请检查网络连接');
                             });
                     },
+                    // 用户订单相关方法
+                    loadUserOrders() {
+                        this.loadingOrders = true;
+                        axios.get('/api/user/orders')
+                            .then(response => {
+                                console.log('User orders response:', response.data);
+                                if (response.data.success) {
+                                    this.userOrders = response.data.orders;
+                                } else {
+                                    console.error('Load user orders failed:', response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Load user orders error:', error);
+                                alert('加载订单列表失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingOrders = false;
+                            });
+                    },
+                    viewUserOrder(orderId) {
+                        axios.get('/api/admin/orders/' + orderId)
+                            .then(response => {
+                                if (response.data.success) {
+                                    this.userOrderDetail = response.data.order;
+                                    this.showUserOrderDetailModal = true;
+                                } else {
+                                    alert('获取订单详情失败: ' + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('View user order error:', error);
+                                alert('获取订单详情失败，请检查网络连接');
+                            });
+                    },
+                    payOrder(orderId) {
+                        // 跳转到支付页面并设置订单信息
+                        this.loadingPayment = true;
+                        axios.get('/api/admin/orders/' + orderId)
+                            .then(response => {
+                                console.log('Order detail response:', response.data);
+                                if (response.data.success) {
+                                    this.paymentOrder = {
+                                        id: response.data.order.id,
+                                        product_name: response.data.order.product_name,
+                                        amount: response.data.order.amount,
+                                        created_at: response.data.order.created_at
+                                    };
+                                    console.log('Payment order set:', this.paymentOrder);
+                                    // 加载支付方式
+                                    return axios.get('/api/payment/gateways');
+                                } else {
+                                    throw new Error('获取订单详情失败: ' + response.data.message);
+                                }
+                            })
+                            .then(gatewaysResponse => {
+                                console.log('Gateways response:', gatewaysResponse.data);
+                                if (gatewaysResponse.data.success) {
+                                    this.paymentGateways = gatewaysResponse.data.gateways;
+                                    console.log('Gateways loaded:', this.paymentGateways);
+                                    // 跳转到支付页面
+                                    this.currentView = 'payment';
+                                } else {
+                                    throw new Error('获取支付方式失败');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Pay order error:', error);
+                                alert('处理支付请求失败，请检查网络连接');
+                            })
+                            .finally(() => {
+                                this.loadingPayment = false;
+                            });
+                    },
                     // 日志管理方法
                     loadLogs() {
                         this.loadingLogs = true;
@@ -2284,6 +2763,36 @@
                                     alert('备份删除失败，请检查网络连接');
                                 });
                         }
+                    },
+                    // 虚拟机转移归属方法
+                    transferVm(vmId) {
+                        this.transferVmId = vmId;
+                        this.transferTargetUserId = '';
+                        this.showTransferVmModal = true;
+                    },
+                    confirmTransferVm() {
+                        if (!this.transferTargetUserId) {
+                            alert('请选择目标用户');
+                            return;
+                        }
+                        
+                        axios.post('/api/admin/vms/transfer', {
+                            vm_id: this.transferVmId,
+                            new_user_id: this.transferTargetUserId
+                        })
+                        .then(response => {
+                            if (response.data.success) {
+                                alert('转移成功');
+                                this.showTransferVmModal = false;
+                                this.loadVms();
+                            } else {
+                                alert('转移失败: ' + response.data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Transfer vm error:', error);
+                            alert('转移失败，请检查网络连接');
+                        });
                     },
                     // 网络配置管理方法
                     loadNetworks() {

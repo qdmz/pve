@@ -111,6 +111,38 @@ class VmController {
             $vm['days_remaining'] = $this->calculateDaysRemaining($vm['expires_at']);
         }
         
+        // 获取详细配置信息
+        $config = $this->pveService->getVmConfig($vmId);
+        if ($config) {
+            $vm['config'] = $config;
+            // 提取关键配置信息
+            $vm['cpu_count'] = $config['cores'] ?? $config['cpus'] ?? 0;
+            $vm['memory_size'] = $config['memory'] ?? $config['mem'] ?? 0;
+            $vm['disk_size'] = $config['rootfs'] ?? $config['scsi0'] ?? 0;
+            $vm['os'] = $config['ostemplate'] ?? $config['template'] ?? 'Unknown';
+            $vm['root_password'] = $config['password'] ?? 'Not set';
+        }
+        
+        // 获取网络信息
+        $networkInfo = $this->pveService->getVmNetworkInfo($vmId);
+        if ($networkInfo) {
+            $vm['network'] = $networkInfo;
+            // 提取IP地址
+            $ips = [];
+            foreach ($networkInfo as $iface) {
+                if (isset($iface['ip-addresses']) && is_array($iface['ip-addresses'])) {
+                    foreach ($iface['ip-addresses'] as $ipInfo) {
+                        if (isset($ipInfo['ip-address'])) {
+                            $ips[] = $ipInfo['ip-address'];
+                        }
+                    }
+                } elseif (isset($iface['ip'])) {
+                    $ips[] = $iface['ip'];
+                }
+            }
+            $vm['ip_addresses'] = $ips;
+        }
+        
         return $vm;
     }
 

@@ -229,7 +229,7 @@ class PveApiService {
 
     // 控制虚拟机
     public function controlVm($vmId, $action) {
-        $stmt = $this->pdo->prepare("SELECT v.vmid, n.* FROM vms v 
+        $stmt = $this->pdo->prepare("SELECT v.vmid, v.type, n.* FROM vms v 
                                    JOIN pve_nodes n ON v.node_id = n.id 
                                    WHERE v.id = ?");
         $stmt->execute([$vmId]);
@@ -238,7 +238,28 @@ class PveApiService {
         if (!$vm) return false;
 
         $auth = "{$vm['api_user']}={$vm['api_token']}";
-        $url = "{$vm['api_url']}/api2/json/nodes/{$vm['name']}/lxc/{$vm['vmid']}/$action";
+        
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($vm['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+        
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return false;
+        
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return false;
+        
+        $nodeName = $data['data'][0]['node'];
+        $type = $vm['type'] ?? 'lxc';
+        $url = "{$vm['api_url']}/api2/json/nodes/{$nodeName}/{$type}/{$vm['vmid']}/$action";
 
         $context = stream_context_create([
             'http' => [
@@ -252,7 +273,7 @@ class PveApiService {
 
     // 虚拟机状态查询
     public function getVmStatus($vmId) {
-        $stmt = $this->pdo->prepare("SELECT v.vmid, n.* FROM vms v 
+        $stmt = $this->pdo->prepare("SELECT v.vmid, v.type, n.* FROM vms v 
                                    JOIN pve_nodes n ON v.node_id = n.id 
                                    WHERE v.id = ?");
         $stmt->execute([$vmId]);
@@ -261,7 +282,28 @@ class PveApiService {
         if (!$vm) return false;
 
         $auth = "{$vm['api_user']}={$vm['api_token']}";
-        $url = "{$vm['api_url']}/api2/json/nodes/{$vm['name']}/lxc/{$vm['vmid']}/status/current";
+        
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($vm['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+        
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return false;
+        
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return false;
+        
+        $nodeName = $data['data'][0]['node'];
+        $type = $vm['type'] ?? 'lxc';
+        $url = "{$vm['api_url']}/api2/json/nodes/{$nodeName}/{$type}/{$vm['vmid']}/status/current";
 
         $context = stream_context_create([
             'http' => [
@@ -276,16 +318,140 @@ class PveApiService {
         return $data['data'] ?? false;
     }
 
+    // 获取虚拟机详细配置
+    public function getVmConfig($vmId) {
+        $stmt = $this->pdo->prepare("SELECT v.vmid, v.type, n.* FROM vms v 
+                                   JOIN pve_nodes n ON v.node_id = n.id 
+                                   WHERE v.id = ?");
+        $stmt->execute([$vmId]);
+        $vm = $stmt->fetch();
+
+        if (!$vm) return false;
+
+        // 首先获取PVE集群中的实际节点名称
+        $auth = "{$vm['api_user']}={$vm['api_token']}";
+        $nodesUrl = rtrim($vm['api_url'], '/') . "/api2/json/nodes";
+        
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+        
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return false;
+        
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return false;
+        
+        $nodeName = $data['data'][0]['node'];
+        $type = $vm['type'] ?? 'lxc';
+        $url = "{$vm['api_url']}/api2/json/nodes/{$nodeName}/{$type}/{$vm['vmid']}/config";
+
+        $response = @file_get_contents($url, false, $context);
+        if (!$response) return false;
+
+        $data = json_decode($response, true);
+        return $data['data'] ?? false;
+    }
+
+    // 获取虚拟机网络信息
+    public function getVmNetworkInfo($vmId) {
+        $stmt = $this->pdo->prepare("SELECT v.vmid, v.type, n.* FROM vms v 
+                                   JOIN pve_nodes n ON v.node_id = n.id 
+                                   WHERE v.id = ?");
+        $stmt->execute([$vmId]);
+        $vm = $stmt->fetch();
+
+        if (!$vm) return false;
+
+        // 首先获取PVE集群中的实际节点名称
+        $auth = "{$vm['api_user']}={$vm['api_token']}";
+        $nodesUrl = rtrim($vm['api_url'], '/') . "/api2/json/nodes";
+        
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+        
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return false;
+        
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return false;
+        
+        $nodeName = $data['data'][0]['node'];
+        $type = $vm['type'] ?? 'lxc';
+        $url = "{$vm['api_url']}/api2/json/nodes/{$nodeName}/{$type}/{$vm['vmid']}/status/network";
+
+        $response = @file_get_contents($url, false, $context);
+        if (!$response) return false;
+
+        $data = json_decode($response, true);
+        return $data['data'] ?? false;
+    }
+
     // 创建虚拟机
     public function createVm($nodeId, $vmConfig) {
         $node = $this->getNodeDetails($nodeId);
-        if (!$node) return false;
+        if (!$node) {
+            // 记录详细错误信息到应用程序日志
+            $logger = new Logger($this->pdo, Logger::ERROR);
+            $logger->log('PVE API Error', 'Node not found: ' . $nodeId);
+            return false;
+        }
 
         // 修复PVE API认证格式
         $apiUser = $node['api_user'];
         $apiToken = $node['api_token'];
         $auth = "{$apiUser}={$apiToken}";
-        $url = "{$node['api_url']}/api2/json/nodes/{$node['name']}/lxc";
+        
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+        
+        // 记录详细信息到应用程序日志
+        $logger = new Logger($this->pdo, Logger::INFO);
+        $logger->info('Creating VM - Node URL: ' . $node['api_url']);
+        $logger->info('Creating VM - Auth: ' . $auth);
+        $logger->info('Creating VM - Nodes URL: ' . $nodesUrl);
+        $logger->info('Creating VM - VM Config: ' . json_encode($vmConfig));
+        
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) {
+            $error = error_get_last();
+            $logger->error('Failed to get nodes: ' . print_r($error, true));
+            return false;
+        }
+        
+        $logger->info('Nodes response: ' . $response);
+        
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) {
+            $logger->error('No nodes found: ' . print_r($data, true));
+            return false;
+        }
+        
+        $nodeName = $data['data'][0]['node'];
+        $url = "{$node['api_url']}/api2/json/nodes/{$nodeName}/lxc";
+        $logger->info('Creating VM - LXC API URL: ' . $url);
 
         $context = stream_context_create([
             'http' => [
@@ -296,9 +462,34 @@ class PveApiService {
         ]);
 
         $response = @file_get_contents($url, false, $context);
-        if (!$response) return false;
+        if (!$response) {
+            $error = error_get_last();
+            $logger->error('Failed to create VM: ' . print_r($error, true));
+            return false;
+        }
 
+        $logger->info('Create VM response: ' . $response);
+        
         $data = json_decode($response, true);
+        if (isset($data['errors'])) {
+            $logger->error('PVE API errors: ' . print_r($data['errors'], true));
+            return false;
+        }
+        
+        // PVE API返回的是UPID字符串，而不是包含vmid的数组
+        // 我们需要从UPID中提取vmid
+        if (isset($data['data']) && is_string($data['data'])) {
+            $upid = $data['data'];
+            // 从UPID中提取vmid，UPID格式: node:pid:timestamp:command:vmid:user
+            if (preg_match('/:vzcreate:(\d+):/', $upid, $matches)) {
+                $vmid = $matches[1];
+                $logger->info('Extracted VMID from UPID: ' . $vmid);
+                return ['vmid' => $vmid, 'upid' => $upid];
+            } else {
+                $logger->error('Failed to extract VMID from UPID: ' . $upid);
+            }
+        }
+        
         return $data['data'] ?? false;
     }
 
@@ -586,5 +777,112 @@ class PveApiService {
 
         $response = @file_get_contents($deleteUrl, false, $context);
         return $response ? true : false;
+    }
+
+    // 获取节点网络配置
+    public function getNodeNetworks($nodeId) {
+        $node = $this->getNodeDetails($nodeId);
+        if (!$node) return [];
+
+        $auth = "{$node['api_user']}={$node['api_token']}";
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return [];
+
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return [];
+
+        $nodeName = $data['data'][0]['node'];
+        $url = rtrim($node['api_url'], '/') . "/api2/json/nodes/{$nodeName}/network";
+
+        $response = @file_get_contents($url, false, $context);
+        if (!$response) return [];
+
+        $data = json_decode($response, true);
+        if (!isset($data['data'])) return [];
+
+        $networks = [];
+        foreach ($data['data'] as $net) {
+            if (isset($net['iface']) && strpos($net['iface'], 'vmbr') === 0) {
+                $networks[] = [
+                    'name' => $net['iface'],
+                    'type' => $net['type'] ?? 'bridge',
+                    'active' => $net['active'] ?? false
+                ];
+            }
+        }
+        return $networks;
+    }
+
+    // 获取节点系统模板
+    public function getNodeTemplates($nodeId) {
+        $node = $this->getNodeDetails($nodeId);
+        if (!$node) return [];
+
+        $auth = "{$node['api_user']}={$node['api_token']}";
+        // 首先获取PVE集群中的实际节点名称
+        $nodesUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes";
+        $context = stream_context_create([
+            'http' => [
+                'header' => "Authorization: PVEAPIToken=$auth\r\n",
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]
+        ]);
+
+        $response = @file_get_contents($nodesUrl, false, $context);
+        if (!$response) return [];
+
+        $data = json_decode($response, true);
+        if (!isset($data['data']) || empty($data['data'])) return [];
+
+        $nodeName = $data['data'][0]['node'];
+        
+        // 获取存储列表
+        $storageUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes/{$nodeName}/storage";
+        $response = @file_get_contents($storageUrl, false, $context);
+        if (!$response) return [];
+
+        $storageData = json_decode($response, true);
+        if (!isset($storageData['data'])) return [];
+
+        $templates = [];
+        foreach ($storageData['data'] as $storage) {
+            if ($storage['content'] && strpos($storage['content'], 'vztmpl') !== false) {
+                $storageName = $storage['storage'];
+                
+                // 获取模板列表
+                $templateListUrl = rtrim($node['api_url'], '/') . "/api2/json/nodes/{$nodeName}/storage/{$storageName}/content";
+                $response = @file_get_contents($templateListUrl, false, $context);
+                if ($response) {
+                    $templateList = json_decode($response, true);
+                    if (isset($templateList['data'])) {
+                        foreach ($templateList['data'] as $template) {
+                            if (isset($template['volid']) && strpos($template['volid'], 'vztmpl') !== false) {
+                                $templates[] = [
+                                    'name' => basename($template['volid']),
+                                    'full_name' => $template['volid'],
+                                    'size' => $template['size'] ?? 0
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $templates;
     }
 } 

@@ -38,11 +38,12 @@ class RateLimiter {
     }
     
     public function recordRequest($identifier) {
+        $ip = $this->getClientIp();
         $stmt = $this->pdo->prepare(
-            "INSERT INTO rate_limits (identifier, created_at) 
-             VALUES (?, NOW())"
+            "INSERT INTO rate_limits (identifier, ip_address, created_at) 
+             VALUES (?, ?, NOW())"
         );
-        $stmt->execute([$identifier]);
+        $stmt->execute([$identifier, $ip]);
         
         $this->cleanupOldRecords();
     }

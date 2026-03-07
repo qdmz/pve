@@ -48,14 +48,18 @@ class Logger {
              VALUES (?, ?, ?, ?, ?, ?)"
         );
         
-        $stmt->execute([
-            $level,
-            $message,
-            json_encode($context, JSON_UNESCAPED_UNICODE),
-            $userId,
-            $ipAddress,
-            $userAgent
-        ]);
+        try {
+            $stmt->execute([
+                $level,
+                $message,
+                json_encode($context, JSON_UNESCAPED_UNICODE),
+                $userId,
+                $ipAddress,
+                $userAgent
+            ]);
+        } catch (Exception $e) {
+            error_log("Logger error: " . $e->getMessage());
+        }
         
         $this->writeToFile($level, $message, $context);
     }
@@ -93,7 +97,7 @@ class Logger {
         file_put_contents($logFile, $logLine, FILE_APPEND | LOCK_EX);
     }
     
-    public function logException(Exception $e, $context = []) {
+    public function logException(Throwable $e, $context = []) {
         $context['exception'] = [
             'message' => $e->getMessage(),
             'code' => $e->getCode(),

@@ -334,14 +334,27 @@ class AdminController {
 
     // 获取订单详情
     public function getOrderDetail($orderId) {
-        $stmt = $this->pdo->prepare(
-            "SELECT o.*, u.username, p.name as product_name 
-             FROM orders o 
-             JOIN users u ON o.user_id = u.id 
-             LEFT JOIN products p ON o.product_id = p.id
-             WHERE o.id = ?"
-        );
-        $stmt->execute([$orderId]);
+        // 检查用户权限，普通用户只能查看自己的订单
+        if (isset($_SESSION['user']) && $_SESSION['user']['role'] !== 'admin') {
+            $stmt = $this->pdo->prepare(
+                "SELECT o.*, u.username, p.name as product_name 
+                 FROM orders o 
+                 JOIN users u ON o.user_id = u.id 
+                 LEFT JOIN products p ON o.product_id = p.id
+                 WHERE o.id = ? AND o.user_id = ?"
+            );
+            $stmt->execute([$orderId, $_SESSION['user']['id']]);
+        } else {
+            $stmt = $this->pdo->prepare(
+                "SELECT o.*, u.username, p.name as product_name 
+                 FROM orders o 
+                 JOIN users u ON o.user_id = u.id 
+                 LEFT JOIN products p ON o.product_id = p.id
+                 WHERE o.id = ?"
+            );
+            $stmt->execute([$orderId]);
+        }
+        
         $order = $stmt->fetch();
         
         if (!$order) {
@@ -453,6 +466,95 @@ class AdminController {
         
         $this->auth->logAudit('delete_vm', ['vm_id' => $vmId]);
         return $stmt->rowCount() > 0;
+    }
+
+    // 创建虚拟机
+    public function createVm($vmData) {
+        // 验证数据
+        if (!isset($vmData['node_id'], $vmData['name'], $vmData['cpu'], $vmData['memory'], $vmData['disk'], $vmData['os'], $vmData['password'], $vmData['user_id'], $vmData['networks'])) {
+            throw new Exception('缺少必要参数');
+        }
+
+        // 生成唯一的VMID
+        $stmt = $this->pdo->query("SELECT MAX(vmid) as max_vmid FROM vms");
+        $result = $stmt->fetch();
+        $vmid = $result && $result['max_vmid'] ? (int)$result['max_vmid'] + 1 : 100;
+
+        // 调用PVE API创建虚拟机
+        $pveService = new PveApiService($this->pdo);
+        $node = $pveService->getNodeDetails($vmData['node_id']);
+
+        if (!$node) {
+            throw new Exception('节点不存在');
+        }
+
+        // 构建虚拟机配置
+        $osTemplate = $vmData['os'];
+        // 确保操作系统模板路径不重复添加文件后缀
+        if (!preg_match('/\.(tar\.gz|tar\.xz|tgz)$/', $osTemplate)) {
+            $osTemplate .= '.tar.gz';
+        }
+        
+        $vmConfig = [
+            'vmid' => $vmid,
+            'hostname' => $vmData['name'],
+            'cores' => $vmData['cpu'],
+            'memory' => $vmData['memory'],
+            'rootfs' => "local:{$vmData['disk']}",
+            'ostemplate' => "local:vztmpl/{$osTemplate}",
+            'password' => $vmData['password'],
+            'onboot' => 1,
+            'start' => 1
+        ];
+
+        // 添加网络配置
+        foreach ($vmData['networks'] as $index => $network) {
+            if (!empty($vmData['ip'])) {
+                // 使用静态IP配置，包含IP地址、子网掩码和网关
+                $vmConfig["net{$index}"] = "name=eth{$index},bridge={$network},ip={$vmData['ip']}/24,gw=154.9.237.254";
+            } else {
+                // 使用DHCP
+                $vmConfig["net{$index}"] = "name=eth{$index},bridge={$network},ip=dhcp";
+            }
+        }
+
+        // 创建虚拟机
+        $result = $pveService->createVm($vmData['node_id'], $vmConfig);
+
+        if (!$result) {
+            // 记录详细错误信息
+            $logger = new Logger($this->pdo, Logger::ERROR);
+            $logger->error('VM creation failed: PVE API returned false');
+            $logger->error('VM Config: ' . json_encode($vmConfig));
+            throw new Exception('PVE API创建虚拟机失败');
+        }
+
+        // 验证结果
+        if (!is_array($result) || !isset($result['vmid'])) {
+            $logger = new Logger($this->pdo, Logger::ERROR);
+            $logger->error('VM creation failed: Invalid API response');
+            $logger->error('API Response: ' . json_encode($result));
+            throw new Exception('PVE API创建虚拟机失败：无效的API响应');
+        }
+
+        // 保存到数据库
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO vms (vmid, node_id, user_id, name, type, status, config)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $result['vmid'],
+            $vmData['node_id'],
+            $vmData['user_id'],
+            $vmData['name'],
+            'lxc',
+            'running',
+            json_encode($vmConfig)
+        ]);
+
+        $vmId = $this->pdo->lastInsertId();
+        $this->auth->logAudit('create_vm', ['vm_id' => $vmId, 'name' => $vmData['name'], 'pve_vmid' => $result['vmid']]);
+        return $vmId;
     }
 
     // ========== 节点管理 ==========
@@ -881,7 +983,7 @@ class AdminController {
 
     // ========== 统计数据 ==========
     
-    // 获取仪表板统计
+    // 获取仪表板统计（管理员）
     public function getDashboardStats() {
         $stats = [];
         
@@ -924,6 +1026,53 @@ class AdminController {
              AND MONTH(created_at) = MONTH(NOW())"
         );
         $stats['monthly'] = $stmt->fetch();
+        
+        return $stats;
+    }
+
+    // 获取用户个人统计
+    public function getUserStats($userId) {
+        $stats = [];
+        
+        // 虚拟机统计（用户自己的）
+        $stmt = $this->pdo->prepare(
+            "SELECT 
+                COUNT(*) as total_vms,
+                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running_vms
+             FROM vms
+             WHERE user_id = ?"
+        );
+        $stmt->execute([$userId]);
+        $vmsStats = $stmt->fetch();
+        $stats['vms'] = $vmsStats ? $vmsStats : ['total_vms' => 0, 'running_vms' => 0];
+        
+        // 订单统计（用户自己的）
+        $stmt = $this->pdo->prepare(
+            "SELECT 
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_orders,
+                SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as total_revenue
+             FROM orders
+             WHERE user_id = ?"
+        );
+        $stmt->execute([$userId]);
+        $ordersStats = $stmt->fetch();
+        $stats['orders'] = $ordersStats ? $ordersStats : ['total_orders' => 0, 'paid_orders' => 0, 'total_revenue' => 0];
+        
+        // 收入统计（用户本月）
+        $stmt = $this->pdo->prepare(
+            "SELECT 
+                SUM(amount) as monthly_revenue,
+                COUNT(*) as monthly_orders
+             FROM orders 
+             WHERE user_id = ?
+             AND status = 'paid' 
+             AND YEAR(created_at) = YEAR(NOW()) 
+             AND MONTH(created_at) = MONTH(NOW())"
+        );
+        $stmt->execute([$userId]);
+        $monthlyStats = $stmt->fetch();
+        $stats['monthly'] = $monthlyStats ? $monthlyStats : ['monthly_revenue' => 0, 'monthly_orders' => 0];
         
         return $stats;
     }

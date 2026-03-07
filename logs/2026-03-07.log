@@ -1,0 +1,120 @@
+[2026-03-07 11:48:54] [ERROR] SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value {"exception":{"message":"SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value","code":"HY000","file":"\/var\/www\/html\/app\/Utils\/RateLimiter.php","line":45,"trace":"#0 \/var\/www\/html\/app\/Utils\/RateLimiter.php(45): PDOStatement->execute(Array)\n#1 \/var\/www\/html\/app\/Utils\/RateLimiter.php(36): RateLimiter->recordRequest('login:114.138.2...')\n#2 \/var\/www\/html\/public\/index.php(96): RateLimiter->check('login:114.138.2...', 10, 900)\n#3 \/var\/www\/html\/public\/index.php(786): {closure}()\n#4 {main}"}}
+[2026-03-07 11:48:54] [CRITICAL] Fatal Error {"type":1,"message":"Uncaught TypeError: http_response_code(): Argument #1 ($response_code) must be of type int, string given in \/var\/www\/html\/app\/Utils\/ErrorHandler.php:98\nStack trace:\n#0 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(98): http_response_code('HY000')\n#1 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(59): ErrorHandler->displayApiError(Object(PDOException))\n#2 [internal function]: ErrorHandler->handleException(Object(PDOException))\n#3 {main}\n  thrown","file":"\/var\/www\/html\/app\/Utils\/ErrorHandler.php","line":98}
+[2026-03-07 11:49:36] [ERROR] SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value {"exception":{"message":"SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value","code":"HY000","file":"\/var\/www\/html\/app\/Utils\/RateLimiter.php","line":45,"trace":"#0 \/var\/www\/html\/app\/Utils\/RateLimiter.php(45): PDOStatement->execute(Array)\n#1 \/var\/www\/html\/app\/Utils\/RateLimiter.php(36): RateLimiter->recordRequest('login:114.138.2...')\n#2 \/var\/www\/html\/public\/index.php(96): RateLimiter->check('login:114.138.2...', 10, 900)\n#3 \/var\/www\/html\/public\/index.php(786): {closure}()\n#4 {main}"}}
+[2026-03-07 11:49:36] [CRITICAL] Fatal Error {"type":1,"message":"Uncaught TypeError: http_response_code(): Argument #1 ($response_code) must be of type int, string given in \/var\/www\/html\/app\/Utils\/ErrorHandler.php:98\nStack trace:\n#0 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(98): http_response_code('HY000')\n#1 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(59): ErrorHandler->displayApiError(Object(PDOException))\n#2 [internal function]: ErrorHandler->handleException(Object(PDOException))\n#3 {main}\n  thrown","file":"\/var\/www\/html\/app\/Utils\/ErrorHandler.php","line":98}
+[2026-03-07 11:49:42] [ERROR] SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value {"exception":{"message":"SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value","code":"HY000","file":"\/var\/www\/html\/app\/Utils\/RateLimiter.php","line":45,"trace":"#0 \/var\/www\/html\/app\/Utils\/RateLimiter.php(45): PDOStatement->execute(Array)\n#1 \/var\/www\/html\/app\/Utils\/RateLimiter.php(36): RateLimiter->recordRequest('login:114.138.2...')\n#2 \/var\/www\/html\/public\/index.php(96): RateLimiter->check('login:114.138.2...', 10, 900)\n#3 \/var\/www\/html\/public\/index.php(786): {closure}()\n#4 {main}"}}
+[2026-03-07 11:49:42] [CRITICAL] Fatal Error {"type":1,"message":"Uncaught TypeError: http_response_code(): Argument #1 ($response_code) must be of type int, string given in \/var\/www\/html\/app\/Utils\/ErrorHandler.php:98\nStack trace:\n#0 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(98): http_response_code('HY000')\n#1 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(59): ErrorHandler->displayApiError(Object(PDOException))\n#2 [internal function]: ErrorHandler->handleException(Object(PDOException))\n#3 {main}\n  thrown","file":"\/var\/www\/html\/app\/Utils\/ErrorHandler.php","line":98}
+[2026-03-07 11:51:10] [ERROR] SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value {"exception":{"message":"SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value","code":"HY000","file":"\/var\/www\/html\/app\/Utils\/RateLimiter.php","line":45,"trace":"#0 \/var\/www\/html\/app\/Utils\/RateLimiter.php(45): PDOStatement->execute(Array)\n#1 \/var\/www\/html\/app\/Utils\/RateLimiter.php(36): RateLimiter->recordRequest('login:127.0.0.1...')\n#2 \/var\/www\/html\/public\/index.php(96): RateLimiter->check('login:127.0.0.1', 10, 900)\n#3 \/var\/www\/html\/public\/index.php(786): {closure}()\n#4 {main}"}}
+[2026-03-07 11:51:10] [CRITICAL] Fatal Error {"type":1,"message":"Uncaught TypeError: http_response_code(): Argument #1 ($response_code) must be of type int, string given in \/var\/www\/html\/app\/Utils\/ErrorHandler.php:98\nStack trace:\n#0 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(98): http_response_code('HY000')\n#1 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(59): ErrorHandler->displayApiError(Object(PDOException))\n#2 [internal function]: ErrorHandler->handleException(Object(PDOException))\n#3 {main}\n  thrown","file":"\/var\/www\/html\/app\/Utils\/ErrorHandler.php","line":98}
+[2026-03-07 11:51:41] [ERROR] SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value {"exception":{"message":"SQLSTATE[HY000]: General error: 1364 Field 'ip_address' doesn't have a default value","code":"HY000","file":"\/var\/www\/html\/app\/Utils\/RateLimiter.php","line":45,"trace":"#0 \/var\/www\/html\/app\/Utils\/RateLimiter.php(45): PDOStatement->execute(Array)\n#1 \/var\/www\/html\/app\/Utils\/RateLimiter.php(36): RateLimiter->recordRequest('login:127.0.0.1...')\n#2 \/var\/www\/html\/public\/index.php(96): RateLimiter->check('login:127.0.0.1', 10, 900)\n#3 \/var\/www\/html\/public\/index.php(786): {closure}()\n#4 {main}"}}
+[2026-03-07 12:13:03] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 12:13:03] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 12:13:24] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 12:13:24] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 12:13:53] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 12:13:53] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 12:20:48] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 12:20:48] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 12:47:03] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":216}
+[2026-03-07 12:47:03] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 12:47:59] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 12:47:59] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 13:09:18] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":232}
+[2026-03-07 13:09:18] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 13:23:46] [ERROR] PHP Error: WARNING - Undefined array key "vm_config" {"errno":2,"errfile":"\/var\/www\/html\/app\/Controllers\/AdminController.php","errline":216}
+[2026-03-07 13:23:46] [ERROR] PHP Error: WARNING - Cannot modify header information - headers already sent by (output started at /var/www/html/app/Utils/ErrorHandler.php:179) {"errno":2,"errfile":"\/var\/www\/html\/public\/index.php","errline":70}
+[2026-03-07 16:06:21] [CRITICAL] Fatal Error {"type":1,"message":"Uncaught TypeError: Logger::logException(): Argument #1 ($e) must be of type Exception, Error given, called in \/var\/www\/html\/app\/Utils\/ErrorHandler.php on line 56 and defined in \/var\/www\/html\/app\/Utils\/Logger.php:100\nStack trace:\n#0 \/var\/www\/html\/app\/Utils\/ErrorHandler.php(56): Logger->logException(Object(Error))\n#1 [internal function]: ErrorHandler->handleException(Object(Error))\n#2 {main}\n  thrown","file":"\/var\/www\/html\/app\/Utils\/Logger.php","line":100}
+[2026-03-07 16:06:52] [ERROR] Call to private method Logger::log() from scope PveApiService {"exception":{"message":"Call to private method Logger::log() from scope PveApiService","code":0,"file":"\/var\/www\/html\/app\/Services\/PveApiService.php","line":390,"trace":"#0 \/var\/www\/html\/app\/Controllers\/AdminController.php(510): PveApiService->createVm(1, Array)\n#1 \/var\/www\/html\/public\/index.php(443): AdminController->createVm(Array)\n#2 \/var\/www\/html\/public\/index.php(871): {closure}()\n#3 {main}"}}
+[2026-03-07 16:07:49] [INFO] Creating VM - Node URL: https://pveusa.ypvps.com:8006
+[2026-03-07 16:07:49] [INFO] Creating VM - Auth: root@pam!heyun=0666360c-6720-4813-8c57-81c648f20b42
+[2026-03-07 16:07:49] [INFO] Creating VM - Nodes URL: https://pveusa.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:07:49] [INFO] Creating VM - VM Config: {"vmid":118,"hostname":"test-vm","cores":1,"memory":512,"rootfs":"local:10","ostemplate":"local:vztmpl\/ubuntu-22.04-standard_22.04-1_amd64.tar.gz.tar.gz","password":"test123","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr1,ip=dhcp"}
+[2026-03-07 16:07:49] [INFO] Nodes response: {"data":[{"maxmem":4112396288,"uptime":1024690,"status":"online","type":"node","level":"","node":"pveusa","mem":2523090944,"ssl_fingerprint":"1B:03:C1:97:06:44:9C:E2:F7:B2:89:39:15:1A:A3:B5:18:4C:23:48:25:ED:07:44:8E:ED:11:6D:13:7A:78:01","id":"node/pveusa","cpu":0.0146365666087819,"disk":13712916480,"maxcpu":4,"maxdisk":41954803712}]}
+[2026-03-07 16:07:49] [INFO] Creating VM - LXC API URL: https://pveusa.ypvps.com:8006/api2/json/nodes/pveusa/lxc
+[2026-03-07 16:07:49] [INFO] Create VM response: {"data":"UPID:pveusa:001C3054:061B917C:69ABDCD8:vzcreate:118:root@pam!heyun:"}
+[2026-03-07 16:07:49] [ERROR] Call to private method Logger::log() from scope AdminController {"exception":{"message":"Call to private method Logger::log() from scope AdminController","code":0,"file":"\/var\/www\/html\/app\/Controllers\/AdminController.php","line":523,"trace":"#0 \/var\/www\/html\/public\/index.php(443): AdminController->createVm(Array)\n#1 \/var\/www\/html\/public\/index.php(871): {closure}()\n#2 {main}"}}
+[2026-03-07 16:08:17] [INFO] Creating VM - Node URL: https://pveusa.ypvps.com:8006
+[2026-03-07 16:08:17] [INFO] Creating VM - Auth: root@pam!heyun=0666360c-6720-4813-8c57-81c648f20b42
+[2026-03-07 16:08:17] [INFO] Creating VM - Nodes URL: https://pveusa.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:08:17] [INFO] Creating VM - VM Config: {"vmid":118,"hostname":"test-vm","cores":1,"memory":512,"rootfs":"local:10","ostemplate":"local:vztmpl\/ubuntu-22.04-standard_22.04-1_amd64.tar.gz.tar.gz","password":"test123","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr1,ip=dhcp"}
+[2026-03-07 16:08:18] [INFO] Nodes response: {"data":[{"type":"node","maxmem":4112396288,"uptime":1024721,"status":"online","node":"pveusa","level":"","ssl_fingerprint":"1B:03:C1:97:06:44:9C:E2:F7:B2:89:39:15:1A:A3:B5:18:4C:23:48:25:ED:07:44:8E:ED:11:6D:13:7A:78:01","id":"node/pveusa","cpu":0.0203020549641,"mem":2532179968,"maxcpu":4,"maxdisk":41954803712,"disk":13712924672}]}
+[2026-03-07 16:08:18] [INFO] Creating VM - LXC API URL: https://pveusa.ypvps.com:8006/api2/json/nodes/pveusa/lxc
+[2026-03-07 16:08:18] [INFO] Create VM response: {"data":"UPID:pveusa:001C30EC:061B9CAB:69ABDCF5:vzcreate:118:root@pam!heyun:"}
+[2026-03-07 16:08:18] [ERROR] VM creation failed: Invalid API response
+[2026-03-07 16:08:18] [ERROR] API Response: "UPID:pveusa:001C30EC:061B9CAB:69ABDCF5:vzcreate:118:root@pam!heyun:"
+[2026-03-07 16:09:22] [INFO] Creating VM - Node URL: https://pveusa.ypvps.com:8006
+[2026-03-07 16:09:22] [INFO] Creating VM - Auth: root@pam!heyun=0666360c-6720-4813-8c57-81c648f20b42
+[2026-03-07 16:09:22] [INFO] Creating VM - Nodes URL: https://pveusa.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:09:22] [INFO] Creating VM - VM Config: {"vmid":118,"hostname":"test-vm","cores":1,"memory":512,"rootfs":"local:10","ostemplate":"local:vztmpl\/ubuntu-22.04-standard_22.04-1_amd64.tar.gz","password":"test123","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr1,ip=dhcp"}
+[2026-03-07 16:09:22] [INFO] Nodes response: {"data":[{"cpu":0.0169956140350877,"id":"node/pveusa","ssl_fingerprint":"1B:03:C1:97:06:44:9C:E2:F7:B2:89:39:15:1A:A3:B5:18:4C:23:48:25:ED:07:44:8E:ED:11:6D:13:7A:78:01","mem":2548342784,"maxdisk":41954803712,"maxcpu":4,"disk":13712932864,"type":"node","uptime":1024790,"status":"online","maxmem":4112396288,"node":"pveusa","level":""}]}
+[2026-03-07 16:09:22] [INFO] Creating VM - LXC API URL: https://pveusa.ypvps.com:8006/api2/json/nodes/pveusa/lxc
+[2026-03-07 16:09:22] [INFO] Create VM response: {"data":"UPID:pveusa:001C31F2:061BB5D2:69ABDD35:vzcreate:118:root@pam!heyun:"}
+[2026-03-07 16:09:22] [ERROR] VM creation failed: Invalid API response
+[2026-03-07 16:09:22] [ERROR] API Response: "UPID:pveusa:001C31F2:061BB5D2:69ABDD35:vzcreate:118:root@pam!heyun:"
+[2026-03-07 16:10:15] [INFO] Creating VM - Node URL: https://pveusa.ypvps.com:8006
+[2026-03-07 16:10:15] [INFO] Creating VM - Auth: root@pam!heyun=0666360c-6720-4813-8c57-81c648f20b42
+[2026-03-07 16:10:15] [INFO] Creating VM - Nodes URL: https://pveusa.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:10:15] [INFO] Creating VM - VM Config: {"vmid":118,"hostname":"test-vm","cores":1,"memory":512,"rootfs":"local:10","ostemplate":"local:vztmpl\/ubuntu-22.04-standard_22.04-1_amd64.tar.gz","password":"test123","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr1,ip=dhcp"}
+[2026-03-07 16:10:15] [INFO] Nodes response: {"data":[{"disk":13712945152,"maxcpu":4,"maxdisk":41954803712,"mem":2535505920,"ssl_fingerprint":"1B:03:C1:97:06:44:9C:E2:F7:B2:89:39:15:1A:A3:B5:18:4C:23:48:25:ED:07:44:8E:ED:11:6D:13:7A:78:01","id":"node/pveusa","cpu":0.0143386897404203,"level":"","node":"pveusa","maxmem":4112396288,"uptime":1024841,"status":"online","type":"node"}]}
+[2026-03-07 16:10:15] [INFO] Creating VM - LXC API URL: https://pveusa.ypvps.com:8006/api2/json/nodes/pveusa/lxc
+[2026-03-07 16:10:15] [INFO] Create VM response: {"data":"UPID:pveusa:001C32F0:061BCA76:69ABDD6A:vzcreate:118:root@pam!heyun:"}
+[2026-03-07 16:10:15] [INFO] Extracted VMID from UPID: 118
+[2026-03-07 16:14:06] [INFO] Creating VM - Node URL: https://pveusa.ypvps.com:8006
+[2026-03-07 16:14:06] [INFO] Creating VM - Auth: root@pam!heyun=0666360c-6720-4813-8c57-81c648f20b42
+[2026-03-07 16:14:06] [INFO] Creating VM - Nodes URL: https://pveusa.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:14:06] [INFO] Creating VM - VM Config: {"vmid":119,"hostname":"pve-test1","cores":1,"memory":512,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.16-64_cloud_b03268d5.tar.xz","password":"password1","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr1,ip=172.16.1.208\/24"}
+[2026-03-07 16:14:07] [INFO] Nodes response: {"data":[{"node":"pveusa","level":"","type":"node","maxmem":4112396288,"status":"online","uptime":1025070,"maxdisk":41954803712,"maxcpu":4,"disk":13712969728,"id":"node/pveusa","cpu":0.016328550222662,"ssl_fingerprint":"1B:03:C1:97:06:44:9C:E2:F7:B2:89:39:15:1A:A3:B5:18:4C:23:48:25:ED:07:44:8E:ED:11:6D:13:7A:78:01","mem":2549460992}]}
+[2026-03-07 16:14:07] [INFO] Creating VM - LXC API URL: https://pveusa.ypvps.com:8006/api2/json/nodes/pveusa/lxc
+[2026-03-07 16:14:07] [INFO] Create VM response: {"data":"UPID:pveusa:001C36CD:061C2528:69ABDE52:vzcreate:119:root@pam!heyun:"}
+[2026-03-07 16:14:07] [INFO] Extracted VMID from UPID: 119
+[2026-03-07 16:22:16] [INFO] Creating VM - Node URL: https://vps.ypvps.com:8006
+[2026-03-07 16:22:16] [INFO] Creating VM - Auth: root@pam!heyun=6803a916-3e1a-4e61-adb3-efddde3f370a
+[2026-03-07 16:22:16] [INFO] Creating VM - Nodes URL: https://vps.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:22:16] [INFO] Creating VM - VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
+[2026-03-07 16:22:17] [INFO] Nodes response: {"data":[{"node":"pvehk3","id":"node/pvehk3","maxdisk":41954803712,"type":"node","ssl_fingerprint":"86:EC:58:61:6D:EC:A6:0F:8A:FF:87:1E:B5:13:41:85:55:55:35:69:F6:4E:6E:90:BC:61:1D:75:EB:D7:E6:1D","uptime":965679,"maxcpu":16,"mem":1857376256,"status":"online","level":"","maxmem":16766504960,"cpu":0.00339820821748533,"disk":21081202688}]}
+[2026-03-07 16:22:17] [INFO] Creating VM - LXC API URL: https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc
+[2026-03-07 16:22:18] [ERROR] Failed to create VM: Array
+(
+    [type] => 2
+    [message] => file_get_contents(https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc): Failed to open stream: HTTP request failed! HTTP/1.1 400 Parameter verification failed.
+
+    [file] => /var/www/html/app/Services/PveApiService.php
+    [line] => 464
+)
+
+[2026-03-07 16:22:18] [ERROR] VM creation failed: PVE API returned false
+[2026-03-07 16:22:18] [ERROR] VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
+[2026-03-07 16:22:23] [INFO] Creating VM - Node URL: https://vps.ypvps.com:8006
+[2026-03-07 16:22:23] [INFO] Creating VM - Auth: root@pam!heyun=6803a916-3e1a-4e61-adb3-efddde3f370a
+[2026-03-07 16:22:23] [INFO] Creating VM - Nodes URL: https://vps.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:22:23] [INFO] Creating VM - VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
+[2026-03-07 16:22:24] [INFO] Nodes response: {"data":[{"level":"","status":"online","cpu":0.00370713623725672,"disk":21081202688,"maxmem":16766504960,"type":"node","maxdisk":41954803712,"ssl_fingerprint":"86:EC:58:61:6D:EC:A6:0F:8A:FF:87:1E:B5:13:41:85:55:55:35:69:F6:4E:6E:90:BC:61:1D:75:EB:D7:E6:1D","uptime":965689,"id":"node/pvehk3","node":"pvehk3","mem":1856720896,"maxcpu":16}]}
+[2026-03-07 16:22:24] [INFO] Creating VM - LXC API URL: https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc
+[2026-03-07 16:22:24] [ERROR] Failed to create VM: Array
+(
+    [type] => 2
+    [message] => file_get_contents(https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc): Failed to open stream: HTTP request failed! HTTP/1.1 400 Parameter verification failed.
+
+    [file] => /var/www/html/app/Services/PveApiService.php
+    [line] => 464
+)
+
+[2026-03-07 16:22:24] [ERROR] VM creation failed: PVE API returned false
+[2026-03-07 16:22:24] [ERROR] VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
+[2026-03-07 16:22:32] [INFO] Creating VM - Node URL: https://vps.ypvps.com:8006
+[2026-03-07 16:22:32] [INFO] Creating VM - Auth: root@pam!heyun=6803a916-3e1a-4e61-adb3-efddde3f370a
+[2026-03-07 16:22:32] [INFO] Creating VM - Nodes URL: https://vps.ypvps.com:8006/api2/json/nodes
+[2026-03-07 16:22:32] [INFO] Creating VM - VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
+[2026-03-07 16:22:33] [INFO] Nodes response: {"data":[{"mem":1856192512,"maxcpu":16,"type":"node","maxdisk":41954803712,"ssl_fingerprint":"86:EC:58:61:6D:EC:A6:0F:8A:FF:87:1E:B5:13:41:85:55:55:35:69:F6:4E:6E:90:BC:61:1D:75:EB:D7:E6:1D","uptime":965699,"node":"pvehk3","id":"node/pvehk3","disk":21081206784,"cpu":0.00370713623725672,"maxmem":16766504960,"level":"","status":"online"}]}
+[2026-03-07 16:22:33] [INFO] Creating VM - LXC API URL: https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc
+[2026-03-07 16:22:33] [ERROR] Failed to create VM: Array
+(
+    [type] => 2
+    [message] => file_get_contents(https://vps.ypvps.com:8006/api2/json/nodes/pvehk3/lxc): Failed to open stream: HTTP request failed! HTTP/1.1 400 Parameter verification failed.
+
+    [file] => /var/www/html/app/Services/PveApiService.php
+    [line] => 464
+)
+
+[2026-03-07 16:22:33] [ERROR] VM creation failed: PVE API returned false
+[2026-03-07 16:22:33] [ERROR] VM Config: {"vmid":120,"hostname":"pve-test2","cores":1,"memory":128,"rootfs":"local:1","ostemplate":"local:vztmpl\/alpine-3.23-64_cloud_b0e927e8.tar.xz","password":"password","onboot":1,"start":1,"net0":"name=eth0,bridge=vmbr0,ip=172.16.1.206\/24\/24,gw=154.9.237.254"}
